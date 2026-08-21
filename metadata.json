@@ -1,0 +1,6 @@
+{
+  "name": "نظام ترقيم وتسجيل المركبات",
+  "description": "نظام ترقيم وتسجيل المركبات بالذكاء الاصطناعي واستخراج البيانات تلقائياً من بطاقات الهوية والبيان الجمركي والمعرفين مع استمارة A4 الرسمية.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
