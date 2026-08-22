@@ -40,11 +40,12 @@ function parseBase64Image(dataUriOrBase64: string): { mimeType: string; base64Da
 }
 
 /**
- * Robust Gemini model invoker with exponential backoff retry and automatic fallback
+ * Robust Gemini model invoker with multiple candidate models and exponential backoff
  * to handle temporary 503 (high demand) or service spikes seamlessly.
  */
 async function generateContentWithFallback(ai: GoogleGenAI, requestConfig: any): Promise<any> {
-  const candidateModels = ["gemini-3.7-flash", "gemini-flash-latest"];
+  // Try ultra-fast gemini-3.1-flash-lite, gemini-3.7-flash, and gemini-flash-latest
+  const candidateModels = ["gemini-3.1-flash-lite", "gemini-3.7-flash", "gemini-flash-latest"];
   let lastError: any = null;
 
   for (const model of candidateModels) {
@@ -54,7 +55,9 @@ async function generateContentWithFallback(ai: GoogleGenAI, requestConfig: any):
           ...requestConfig,
           model,
         });
-        return response;
+        if (response && response.text) {
+          return response;
+        }
       } catch (err: any) {
         lastError = err;
         const errStr = String(err?.message || err || '');
@@ -68,11 +71,11 @@ async function generateContentWithFallback(ai: GoogleGenAI, requestConfig: any):
         console.warn(`[Gemini API] Request failed with model ${model} (attempt ${attempt}):`, err?.message || err);
 
         if (isSpikeOrUnavailable && attempt < 2) {
-          // Wait 1.2 seconds before retrying same model
-          await new Promise((resolve) => setTimeout(resolve, 1200));
+          // Wait briefly before retrying
+          await new Promise((resolve) => setTimeout(resolve, 800 * attempt));
           continue;
         }
-        // Move to the next fallback model
+        // Move to the next model in the candidate list
         break;
       }
     }

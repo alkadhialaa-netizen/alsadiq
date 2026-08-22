@@ -764,11 +764,11 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
             </div>
 
             {/* Box 2: Vehicle Plate Photo (Requested by User) */}
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Camera className="w-4 h-4 text-indigo-600" />
-                  <span className="text-xs font-black text-slate-800">صورة لوحة المركبة (اختيار / التقاط)</span>
+                  <span className="text-xs font-black text-slate-800">صورة لوحة المركبة (مرفق اللوحة الموسع)</span>
                 </div>
                 {currentData.vehiclePlatePhoto && (
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
@@ -778,43 +778,43 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
               </div>
 
               {currentData.vehiclePlatePhoto ? (
-                <div className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
                     <img 
                       src={currentData.vehiclePlatePhoto} 
                       alt="Vehicle Plate Photo" 
-                      className="w-16 h-12 object-cover rounded-lg border border-slate-300 shadow-2xs"
+                      className="w-24 h-16 sm:w-32 sm:h-20 object-contain rounded-lg border border-slate-300 shadow-xs bg-slate-50"
                     />
                     <div>
-                      <span className="text-xs font-bold text-slate-800 block">صورة لوحة المركبة الحالية</span>
-                      <span className="text-[10px] text-slate-500">تم حفظ وإرفاق صورة اللوحة</span>
+                      <span className="text-xs font-bold text-slate-800 block">صورة لوحة الرقم المرفقة</span>
+                      <span className="text-[10.5px] text-slate-500 block mt-0.5">معروضة بحجم موسع ومطابق للاستمارة الرسمية</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-end sm:self-center">
                     <button
                       type="button"
                       onClick={() => openScanner('plate-photo', 'استبدال صورة لوحة المركبة', 'التقط أو اختر صورة جديدة للوحة')}
-                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
+                      className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition cursor-pointer"
                     >
                       استبدال
                     </button>
                     <button
                       type="button"
                       onClick={() => updateField('vehiclePlatePhoto', undefined)}
-                      className="text-[11px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                      className="text-xs font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition cursor-pointer"
                     >
                       حذف
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="p-3 border-2 border-dashed border-indigo-200 rounded-xl bg-white text-center space-y-2">
-                  <p className="text-xs text-slate-500">يمكنك التقاط أو اختيار صورة لوحة المركبة هنا</p>
+                <div className="p-4 border-2 border-dashed border-indigo-200 rounded-xl bg-white text-center space-y-2">
+                  <p className="text-xs text-slate-500">يمكنك التقاط أو اختيار صورة لوحة المركبة لتظهر بالحجم المكبر في الاستمارة</p>
                   <div className="flex items-center justify-center gap-2">
                     <button
                       type="button"
                       onClick={() => openScanner('plate-photo', 'تصوير لوحة المركبة بالكاميرا', 'التقط صورة واضحة للوحة المركبة')}
-                      className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg transition cursor-pointer"
+                      className="flex items-center gap-1.5 text-xs px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-xs transition cursor-pointer"
                     >
                       <Camera className="w-3.5 h-3.5" />
                       تصوير اللوحة
@@ -822,7 +822,7 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
                     <button
                       type="button"
                       onClick={() => openScanner('plate-photo', 'اختيار صورة اللوحة من المعرض', 'اختر صورة لوحة المركبة من جهازك')}
-                      className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition cursor-pointer"
+                      className="flex items-center gap-1.5 text-xs px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer"
                     >
                       <Upload className="w-3.5 h-3.5" />
                       اختيار صورة اللوحة
@@ -899,9 +899,10 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
                 onChange={(e) => updateField('vinNumber', e.target.value.toUpperCase())}
                 placeholder="مثال: JTMHU01J8N4198243"
                 maxLength={17}
-                className="w-full font-mono font-bold tracking-widest text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                dir="ltr"
+                className="w-full font-mono font-bold tracking-widest text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase text-left"
               />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">
+              <span className="text-[10px] text-slate-400 mt-0.5 block" dir="rtl">
                 عدد الخانات: {currentData.vinNumber?.length || 0} من 17
               </span>
             </div>
@@ -916,7 +917,8 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
                 value={currentData.engineNumber}
                 onChange={(e) => updateField('engineNumber', e.target.value)}
                 placeholder="مثال: 3UR-FE-9832104"
-                className="w-full font-mono text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                dir="ltr"
+                className="w-full font-mono text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-left"
               />
             </div>
 

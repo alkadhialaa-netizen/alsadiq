@@ -214,12 +214,12 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
       }
 
       if (!response.ok) {
-        let msg = result.error || 'حدث خطأ أثناء معالجة الصورة بالذكاء الاصطناعي';
+        let msg = result.error || 'حدث ضغط مؤقت على خدمة الاستخراج بالذكاء الاصطناعي.';
         if (typeof msg === 'object') {
           msg = JSON.stringify(msg);
         }
         if (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand') || msg.includes('overloaded')) {
-          msg = 'خدمة الذكاء الاصطناعي تشهد ضغطاً مؤقتاً في الطلبات، يرجى النقر على إعادة المحاولة أو تعبئة الحقول يدوياً.';
+          msg = 'خدمة الذكاء الاصطناعي تشهد ضغطاً مؤقتاً في الطلبات. يمكنك النقر على "إعادة المحاولة" أو استخدام الصورة وتعبئة البيانات يدوياً.';
         }
         throw new Error(msg);
       }
@@ -228,13 +228,14 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
         setExtractedPreview(result.data);
         setProcessStatus('تم استخراج البيانات بنجاح!');
       } else {
-        throw new Error('لم يتم العثور على نصوص واضحة بالوثيقة، يمكنك ملء الحقول يدوياً.');
+        throw new Error('لم يتم استخراج نصوص كافية من الصورة. يمكنك إعادة المحاولة أو المتابعة يدوياً.');
       }
     } catch (err: any) {
-      console.error('AI Extraction error:', err);
-      let cleanMsg = err?.message || 'تعذر استخراج البيانات. يمكنك إعادة التصوير أو ملء الحقول يدوياً.';
-      if (cleanMsg.includes('{"error"') || cleanMsg.includes('503') || cleanMsg.includes('UNAVAILABLE')) {
-        cleanMsg = 'خدمة الذكاء الاصطناعي تشهد ضغطاً مؤقتاً في الطلبات، يرجى المحاولة ثانية بعد قليل أو إدخال البيانات يدوياً.';
+      let cleanMsg = String(err?.message || err || 'تعذر استخراج البيانات حالياً.');
+      if (cleanMsg.includes('503') || cleanMsg.includes('UNAVAILABLE') || cleanMsg.includes('high demand') || cleanMsg.includes('overloaded')) {
+        cleanMsg = 'خدمة الذكاء الاصطناعي تشهد ضغطاً مؤقتاً في الطلبات. يمكنك النقر على "إعادة المحاولة" أو اعتماد الصورة وإدخال البيانات يدوياً.';
+      } else if (cleanMsg.includes('{"error"')) {
+        cleanMsg = 'تعذر إتمام المعالجة الآلية مؤقتاً. يمكنك إعادة المحاولة أو اعتماد الصورة وتعبئة البيانات يدوياً.';
       }
       setErrorMessage(cleanMsg);
     } finally {
@@ -520,7 +521,11 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
                 className="flex items-center gap-1.5 bg-blue-900 hover:bg-blue-950 text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl shadow-md transition disabled:opacity-50 cursor-pointer"
               >
                 <Check className="w-4 h-4" />
-                <span>اعتماد وتعبئة البيانات في الاستمارة</span>
+                <span>
+                  {extractedPreview 
+                    ? "اعتماد وتعبئة البيانات في الاستمارة" 
+                    : "اعتماد وإرفاق الصورة (إكمال يدوي)"}
+                </span>
               </button>
             </div>
           )}

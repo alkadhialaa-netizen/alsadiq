@@ -109,22 +109,30 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
     if (currentScanType === 'owner-id') {
       onChange({
         ...currentData,
-        ownerFullName: extracted.ownerFullName || currentData.ownerFullName,
-        ownerNationalId: extracted.ownerNationalId || currentData.ownerNationalId,
-        ownerAddress: extracted.ownerAddress || currentData.ownerAddress,
+        ownerFullName: extracted.ownerFullName || extracted.fullName || currentData.ownerFullName,
+        ownerNationalId: extracted.ownerNationalId || extracted.nationalId || currentData.ownerNationalId,
+        ownerAddress: extracted.ownerAddress || extracted.address || currentData.ownerAddress,
+        ownerPhone: extracted.ownerPhone || extracted.phone || currentData.ownerPhone,
         ownerBloodType: extracted.ownerBloodType || currentData.ownerBloodType,
         ownerBirthDate: extracted.ownerBirthDate || currentData.ownerBirthDate,
         ownerIdIssuePlace: extracted.ownerIdIssuePlace || currentData.ownerIdIssuePlace,
         ownerIdCardPhoto: imageBase64 || currentData.ownerIdCardPhoto,
         updatedAt: new Date().toISOString(),
       });
-      showToast('تم استخراج بيانات البطاقة الشخصية وحفظ الصورة بنجاح');
+      showToast('تم استخراج بيانات بطاقة المالك الشخصية بنجاح وتعبئة الحقول');
+    } else if (currentScanType === 'owner-photo') {
+      onChange({
+        ...currentData,
+        ownerPhoto: imageBase64,
+        updatedAt: new Date().toISOString(),
+      });
+      showToast('تم حفظ صورة المالك الشخصية (4×6) بنجاح');
     } else if (currentScanType === 'customs') {
       onChange({
         ...currentData,
         customsDeclarationNumber: extracted.customsDeclarationNumber || currentData.customsDeclarationNumber,
-        vinNumber: extracted.vinNumber || currentData.vinNumber,
-        engineNumber: extracted.engineNumber || currentData.engineNumber,
+        vinNumber: extracted.vinNumber ? String(extracted.vinNumber).toUpperCase() : currentData.vinNumber,
+        engineNumber: extracted.engineNumber ? String(extracted.engineNumber).toUpperCase() : currentData.engineNumber,
         make: extracted.make || currentData.make,
         model: extracted.model || currentData.model,
         year: extracted.year || currentData.year,
@@ -135,19 +143,37 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
       });
       showToast('تم استخراج بيانات البيان الجمركي والمركبة بنجاح');
     } else if (currentScanType === 'guarantor-1') {
+      const g1 = currentData.guarantor1 || { fullName: '', nationalId: '', phone: '', address: '', relationship: '' };
       onChange({
         ...currentData,
         guarantor1: {
-          fullName: extracted.ownerFullName || currentData.guarantor1?.fullName || '',
-          nationalId: extracted.ownerNationalId || currentData.guarantor1?.nationalId || '',
-          phone: currentData.guarantor1?.phone || '',
-          address: extracted.ownerAddress || currentData.guarantor1?.address || '',
-          relationship: currentData.guarantor1?.relationship || 'معرّف وضامن',
-          idCardPhoto: imageBase64 || currentData.guarantor1?.idCardPhoto,
+          ...g1,
+          fullName: extracted.fullName || extracted.ownerFullName || g1.fullName,
+          nationalId: extracted.nationalId || extracted.ownerNationalId || g1.nationalId,
+          phone: extracted.phone || g1.phone,
+          address: extracted.address || extracted.ownerAddress || g1.address,
+          relationship: extracted.relationship || g1.relationship || 'معرّف وضامن',
+          idCardPhoto: imageBase64 || g1.idCardPhoto,
         },
         updatedAt: new Date().toISOString(),
       });
-      showToast('تم استخراج بيانات بطاقة المعرف وضبطها بنجاح');
+      showToast('تم استخراج بيانات بطاقة المعرف الأول بنجاح! يمكنك إدخال رقم الهاتف يدوياً');
+    } else if (currentScanType === 'guarantor-2') {
+      const g2 = currentData.guarantor2 || { fullName: '', nationalId: '', phone: '', address: '', relationship: '' };
+      onChange({
+        ...currentData,
+        guarantor2: {
+          ...g2,
+          fullName: extracted.fullName || extracted.ownerFullName || g2.fullName,
+          nationalId: extracted.nationalId || extracted.ownerNationalId || g2.nationalId,
+          phone: extracted.phone || g2.phone,
+          address: extracted.address || extracted.ownerAddress || g2.address,
+          relationship: extracted.relationship || g2.relationship || 'معرّف وشاهد',
+          idCardPhoto: imageBase64 || g2.idCardPhoto,
+        },
+        updatedAt: new Date().toISOString(),
+      });
+      showToast('تم استخراج بيانات بطاقة المعرف الثاني بنجاح! يمكنك إدخال رقم الهاتف يدوياً');
     }
   };
 
@@ -478,30 +504,122 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
           {/* ================= STEP 2: بيانات المالك ================= */}
           {currentStep === 2 && (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                     2
                   </div>
                   <div>
-                    <h3 className="text-base font-black text-slate-900">بيانات مالك المركبة والتوثيق</h3>
-                    <p className="text-xs text-slate-500">الاسم الرباعي، رقم الهوية الوطنية، ومحل الإقامة ورقم الهاتف</p>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-black text-slate-900">بيانات مالك المركبة والتوثيق</h3>
+                      <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        مسح ضوئي 📷 أو إدخال يدوي ✍️
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">الاسم الرباعي، رقم الهوية الوطنية، محل الإقامة، ورقم الهاتف</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => openScanner('owner-id', 'مسح وقراءة البطاقة الشخصية', 'التقط أو ارفع صورة البطاقة لاستخراج الاسم والرقم الوطني تلقائياً')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 transition cursor-pointer"
-                >
-                  <Camera className="w-3.5 h-3.5" />
-                  <span>مسح البطاقة بالذكاء الاصطناعي</span>
-                </button>
+
+                {/* Scan & Photo Action Buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openScanner('owner-id', 'مسح وقراءة البطاقة الشخصية للمالك', 'التقط بالكاميرا أو ارفع صورة البطاقة لاستخراج الاسم والرقم الوطني والعنوان تلقائياً')}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition cursor-pointer"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>مسح البطاقة الشخصية بالـ AI</span>
+                  </button>
+
+                  <label className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 transition cursor-pointer">
+                    <User className="w-3.5 h-3.5 text-blue-600" />
+                    <span>الصورة الشخصية (4×6)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            updateField('ownerPhoto', reader.result as string);
+                            showToast('تم إرفاق صورة المالك الشخصية بنجاح');
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
 
+              {/* Status info bar */}
+              <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-indigo-900">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <span>
+                    <strong>طريقة الإدخال:</strong> يمكنك مسح البطاقة الشخصية بالكاميرا لاستخراج البيانات آلياً، أو كتابتها في الخانات أدناه يدوياً.
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  {currentData.ownerIdCardPhoto && (
+                    <span className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      تم إرفاق بطاقة الهوية
+                    </span>
+                  )}
+                  {currentData.ownerPhoto && (
+                    <span className="text-[11px] font-bold text-blue-700 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                      تم إرفاق الصورة 4×6
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Photo Previews if any */}
+              {(currentData.ownerIdCardPhoto || currentData.ownerPhoto) && (
+                <div className="flex flex-wrap items-center gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  {currentData.ownerIdCardPhoto && (
+                    <div className="flex items-center gap-2">
+                      <img src={currentData.ownerIdCardPhoto} alt="Owner ID Card" className="w-16 h-12 object-cover rounded-lg border border-slate-300" />
+                      <div className="text-[11px]">
+                        <span className="font-bold text-slate-700 block">صورة بطاقة الهوية</span>
+                        <button
+                          type="button"
+                          onClick={() => updateField('ownerIdCardPhoto', '')}
+                          className="text-rose-600 hover:text-rose-800 font-bold text-[10px] cursor-pointer"
+                        >
+                          إزالة الصورة
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {currentData.ownerPhoto && (
+                    <div className="flex items-center gap-2">
+                      <img src={currentData.ownerPhoto} alt="Owner Portrait" className="w-12 h-14 object-cover rounded-lg border border-slate-300 shadow-xs" />
+                      <div className="text-[11px]">
+                        <span className="font-bold text-slate-700 block">الصورة الشخصية 4×6</span>
+                        <button
+                          type="button"
+                          onClick={() => updateField('ownerPhoto', '')}
+                          className="text-rose-600 hover:text-rose-800 font-bold text-[10px] cursor-pointer"
+                        >
+                          إزالة الصورة
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Input Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    اسم المالك الرباعي <span className="text-red-500">*</span>
+                    اسم المالك الرباعي واللقب <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -529,7 +647,7 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    رقم الهاتف / الجوال
+                    رقم الهاتف / الجوال (إدخال يدوي)
                   </label>
                   <input
                     type="text"
@@ -599,7 +717,7 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   onClick={() => setCurrentStep(3)}
                   className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
                 >
-                  <span>التالي: بيانات المركبة والجمارك</span>
+                  <span>التالي: بيانات المركبة والجمارك (يدوي)</span>
                   <ChevronLeft className="w-4 h-4" />
                 </button>
               </div>
@@ -725,7 +843,8 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                       value={currentData.vinNumber}
                       onChange={(e) => updateField('vinNumber', e.target.value.toUpperCase())}
                       placeholder="17 حرف ورقم (مثال: KMHD84LF7HA123456)"
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black font-mono tracking-wider text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-none uppercase"
+                      dir="ltr"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black font-mono tracking-wider text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-none uppercase text-left"
                     />
                   </div>
 
@@ -739,7 +858,8 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                       value={currentData.engineNumber}
                       onChange={(e) => updateField('engineNumber', e.target.value.toUpperCase())}
                       placeholder="مثال: G4NA-FU94821"
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black font-mono tracking-wider text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-none uppercase"
+                      dir="ltr"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black font-mono tracking-wider text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-none uppercase text-left"
                     />
                   </div>
                 </div>
@@ -774,46 +894,87 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                 </div>
               </div>
 
-              {/* Vehicle Plate Photo Attachment */}
-              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold shrink-0">
-                    <ImageIcon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900">صورة لوحة المركبة الملتقطة</h4>
-                    <p className="text-[11px] text-slate-500">التقاط أو إرفاق صورة اللوحة المركبة على السيارة للمطابقة</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {currentData.vehiclePlatePhoto && (
-                    <div className="w-12 h-10 rounded-lg overflow-hidden border border-slate-300">
-                      <img src={currentData.vehiclePlatePhoto} alt="Plate preview" className="w-full h-full object-cover" />
+              {/* Vehicle Plate Photo Attachment - Expanded & Enlarged */}
+              <div className="border border-slate-200 rounded-2xl p-5 bg-gradient-to-b from-slate-50 to-white shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                      <Camera className="w-5 h-5" />
                     </div>
-                  )}
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                        <span>صورة لوحة المركبة (مرفق اللوحة)</span>
+                        {currentData.vehiclePlatePhoto && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                            تم الإرفاق ✓
+                          </span>
+                        )}
+                      </h4>
+                      <p className="text-xs text-slate-500">التقاط أو إرفاق صورة اللوحة المركبة على السيارة بوضوح للمطابقة في الاستمارة</p>
+                    </div>
+                  </div>
 
-                  <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer transition">
-                    <Camera className="w-3.5 h-3.5" />
-                    <span>التقاط / رفع صورة اللوحة</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            updateField('vehiclePlatePhoto', reader.result as string);
-                            showToast('تم إرفاق صورة لوحة المركبة بنجاح');
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition shadow-xs">
+                      <Camera className="w-4 h-4" />
+                      <span>{currentData.vehiclePlatePhoto ? 'تغيير / إعادة تصوير اللوحة' : 'التقاط أو رفع صورة اللوحة'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              updateField('vehiclePlatePhoto', reader.result as string);
+                              showToast('تم إرفاق وتكبير صورة لوحة المركبة بنجاح');
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+
+                    {currentData.vehiclePlatePhoto && (
+                      <button
+                        type="button"
+                        onClick={() => updateField('vehiclePlatePhoto', undefined)}
+                        className="px-3 py-2 text-xs font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 rounded-xl transition cursor-pointer"
+                      >
+                        حذف الصورة
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Large Plate Photo Display Area */}
+                {currentData.vehiclePlatePhoto ? (
+                  <div className="bg-slate-100/80 border-2 border-blue-200 rounded-xl p-3 flex flex-col sm:flex-row items-center gap-4">
+                    <div className="w-full sm:w-64 h-32 rounded-lg overflow-hidden border border-slate-300 shadow-sm bg-white flex items-center justify-center">
+                      <img 
+                        src={currentData.vehiclePlatePhoto} 
+                        alt="صورة لوحة المركبة" 
+                        className="w-full h-full object-contain" 
+                      />
+                    </div>
+                    <div className="text-right space-y-1">
+                      <span className="text-xs font-black text-slate-800 block">معاينة صورة لوحة الرقم الموسعة:</span>
+                      <p className="text-[11px] text-slate-600">
+                        تظهر هذه الصورة مباشرة بالحجم المخصص في الترويسة العلوية لاستمارة التسجيل الرسمية وبطاقة الملكية.
+                      </p>
+                      <span className="inline-block text-[10.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                        جاهزة للطباعة والتوثيق
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center bg-slate-50/50">
+                    <p className="text-xs text-slate-500 font-medium">
+                      لم يتم إرفاق صورة للوحة بعد. يمكنك تصوير لوحة السيارة لإدراجها في خانة صورة اللوحة في استمارة A4.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Navigation Buttons */}
@@ -842,38 +1003,72 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
           {/* ================= STEP 4: المعرفين والشهود ================= */}
           {currentStep === 4 && (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                     4
                   </div>
                   <div>
-                    <h3 className="text-base font-black text-slate-900">المعرفين والشهود المعتمدين</h3>
-                    <p className="text-xs text-slate-500">بيانات المعرف الأول والمعرف الثاني لتوثيق ملكية المركبة</p>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-black text-slate-900">المعرفين والشهود المعتمدين</h3>
+                      <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        مسح البطاقات 📷 + هاتف يدوي ✍️
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">بيانات المعرف الأول والمعرف الثاني لتوثيق ملكية المركبة وضمانها</p>
                   </div>
                 </div>
               </div>
 
+              {/* Instructions banner */}
+              <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 text-xs text-amber-950 flex items-center gap-2.5">
+                <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>
+                  <strong>تعليمات الإدخال:</strong> يمكنك مسح بطاقة هوية كل معرّف لاستخراج الاسم الرباعي والرقم الوطني تلقائياً، مع إدخال رقم الهاتف وصلة القرابة يدوياً.
+                </span>
+              </div>
+
               {/* Guarantor 1 */}
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
                   <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                     <UserCheck className="w-4 h-4 text-blue-600" />
-                    بيانات المعرف الأول:
+                    بيانات المعرف الأول (الضامن الأساسي):
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => openScanner('guarantor-1', 'مسح بطاقة المعرف الأول', 'التقط صورة البطاقة الشخصية للمعرف لاستخراج بياناته')}
-                    className="text-[10.5px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 cursor-pointer"
-                  >
-                    <Camera className="w-3 h-3" />
-                    <span>مسح البطاقة بالـ AI</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openScanner('guarantor-1', 'مسح بطاقة المعرف الأول', 'التقط بالكاميرا أو ارفع صورة البطاقة الشخصية للمعرف الأول لاستخراج بياناته')}
+                      className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>مسح بطاقة المعرف الأول بالـ AI</span>
+                    </button>
+                  </div>
                 </div>
+
+                {/* Guarantor 1 Photo Attachment */}
+                {currentData.guarantor1?.idCardPhoto && (
+                  <div className="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img src={currentData.guarantor1.idCardPhoto} alt="Guarantor 1 ID" className="w-14 h-10 object-cover rounded-lg border border-slate-300" />
+                      <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> تم مسح وإرفاق بطاقة المعرف الأول
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateGuarantor('guarantor1', 'idCardPhoto', '')}
+                      className="text-xs text-rose-600 hover:text-rose-800 font-bold cursor-pointer"
+                    >
+                      حذف
+                    </button>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-3">
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">اسم المعرف الرباعي</label>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">اسم المعرف الأول الرباعي واللقب</label>
                     <input
                       type="text"
                       value={currentData.guarantor1?.fullName || ''}
@@ -884,7 +1079,7 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">الرقم الوطني للمعرف</label>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">الرقم الوطني / رقم الهوية</label>
                     <input
                       type="text"
                       value={currentData.guarantor1?.nationalId || ''}
@@ -895,7 +1090,9 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">رقم هاتف المعرف</label>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      رقم هاتف المعرف <span className="text-blue-600">(إدخال يدوي)</span>
+                    </label>
                     <input
                       type="text"
                       value={currentData.guarantor1?.phone || ''}
@@ -915,19 +1112,61 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     />
                   </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">محل السكن / العنوان</label>
+                    <input
+                      type="text"
+                      value={currentData.guarantor1?.address || ''}
+                      onChange={(e) => updateGuarantor('guarantor1', 'address', e.target.value)}
+                      placeholder="مثال: تعز - المظفر"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Guarantor 2 */}
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3">
-                <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                  <UserCheck className="w-4 h-4 text-slate-600" />
-                  بيانات المعرف الثاني (اختياري / شاهد):
-                </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
+                  <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                    <UserCheck className="w-4 h-4 text-slate-600" />
+                    بيانات المعرف الثاني (الضامن الثاني / الشاهد):
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openScanner('guarantor-2', 'مسح بطاقة المعرف الثاني', 'التقط بالكاميرا أو ارفع صورة البطاقة الشخصية للمعرف الثاني لاستخراج بياناته')}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>مسح بطاقة المعرف الثاني بالـ AI</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Guarantor 2 Photo Attachment */}
+                {currentData.guarantor2?.idCardPhoto && (
+                  <div className="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img src={currentData.guarantor2.idCardPhoto} alt="Guarantor 2 ID" className="w-14 h-10 object-cover rounded-lg border border-slate-300" />
+                      <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> تم مسح وإرفاق بطاقة المعرف الثاني
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateGuarantor('guarantor2', 'idCardPhoto', '')}
+                      className="text-xs text-rose-600 hover:text-rose-800 font-bold cursor-pointer"
+                    >
+                      حذف
+                    </button>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-3">
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">اسم الشاهد الثاني الرباعي</label>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">اسم الشاهد الثاني الرباعي واللقب</label>
                     <input
                       type="text"
                       value={currentData.guarantor2?.fullName || ''}
@@ -938,7 +1177,7 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">الرقم الوطني</label>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">الرقم الوطني / رقم الهوية</label>
                     <input
                       type="text"
                       value={currentData.guarantor2?.nationalId || ''}
@@ -949,7 +1188,9 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">رقم الهاتف</label>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      رقم هاتف المعرف <span className="text-indigo-600">(إدخال يدوي)</span>
+                    </label>
                     <input
                       type="text"
                       value={currentData.guarantor2?.phone || ''}
@@ -960,12 +1201,23 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">صلة المعرفة</label>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">صلة المعرفة / القرابة</label>
                     <input
                       type="text"
                       value={currentData.guarantor2?.relationship || 'معرّف وشاهد'}
                       onChange={(e) => updateGuarantor('guarantor2', 'relationship', e.target.value)}
                       placeholder="مثال: معرف وشاهد"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">محل السكن / العنوان</label>
+                    <input
+                      type="text"
+                      value={currentData.guarantor2?.address || ''}
+                      onChange={(e) => updateGuarantor('guarantor2', 'address', e.target.value)}
+                      placeholder="مثال: تعز - القاهرة"
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-600 focus:outline-none"
                     />
                   </div>
@@ -988,7 +1240,7 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   onClick={() => setCurrentStep(5)}
                   className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
                 >
-                  <span>التالي: الفحص والرسوم والاعتماد</span>
+                  <span>التالي: الفحص والرسوم والاعتماد (يدوي)</span>
                   <ChevronLeft className="w-4 h-4" />
                 </button>
               </div>

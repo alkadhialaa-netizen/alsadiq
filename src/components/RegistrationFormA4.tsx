@@ -262,11 +262,11 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
             <div className="grid grid-cols-12 gap-2 items-center px-1">
               
               {/* Left: Serial Number & Metadata */}
-              <div className="col-span-3 text-right space-y-1 text-[8.5px]">
+              <div className="col-span-3 text-right space-y-1.5 text-[9px]">
                 <div className="flex items-center gap-1.5 font-bold">
                   <span className="text-slate-600 whitespace-nowrap">رقم تسلسلي :</span>
                   <span 
-                    className="font-mono font-black text-[9.5px] px-1.5 py-0.5 rounded"
+                    className="font-mono font-black text-[10.5px] px-2 py-0.5 rounded shadow-2xs"
                     style={{ backgroundColor: themeColors.bgLight, color: themeColors.primaryDark }}
                   >
                     {data.registrationSequenceNumber || data.serialNumber || '4-3580'}
@@ -274,7 +274,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                 </div>
                 <div className="flex items-center gap-1.5 font-bold">
                   <span className="text-slate-600 whitespace-nowrap">رقم الاستمارة:</span>
-                  <span className="font-mono font-black text-slate-900 text-[9px]">{data.formNumber || data.customsDeclarationNumber || 'C2006'}</span>
+                  <span className="font-mono font-black text-slate-900 text-[10px]">{data.formNumber || data.customsDeclarationNumber || 'C2006'}</span>
                 </div>
               </div>
 
@@ -282,7 +282,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
               <div className="col-span-6 flex flex-col items-center">
                 {/* Visual License Plate */}
                 <div 
-                  className="w-full max-w-[245px] border-[1.5px] rounded-lg overflow-hidden bg-white shadow-2xs flex items-stretch h-[38px] relative"
+                  className="w-full max-w-[270px] border-[2px] rounded-xl overflow-hidden bg-white shadow-xs flex items-stretch h-[44px] relative"
                   style={{ borderColor: themeColors.plateBorder }}
                 >
                   {/* 1. Category Box: خصوصي أو نقل */}
@@ -294,7 +294,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                     }}
                   >
                     <span 
-                      className="text-[11.5px] font-black tracking-tight leading-none"
+                      className="text-[13px] font-black tracking-tight leading-none"
                       style={{ color: themeColors.plateCategoryText }}
                     >
                       {categoryName}
@@ -303,12 +303,12 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
 
                   {/* 2. Plate Number & Prefix Extension */}
                   <div 
-                    className="flex-1 flex items-center justify-center font-mono font-black px-1.5 bg-white relative min-w-0"
+                    className="flex-1 flex items-center justify-center font-mono font-black px-2 bg-white relative min-w-0"
                     dir="ltr"
                   >
                     {platePrefix && (
                       <span 
-                        className="font-black text-[13.5px] tracking-tight shrink-0"
+                        className="font-black text-[15px] tracking-tight shrink-0"
                         style={{ color: themeColors.primaryDark }}
                       >
                         {platePrefix}
@@ -316,13 +316,13 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                     )}
 
                     {/* Clear, Compact Separator */}
-                    <span className="mx-1.5 px-1 py-0.2 rounded bg-slate-200 border border-slate-300 text-slate-800 font-black text-[9.5px] select-none shadow-2xs leading-none shrink-0">
+                    <span className="mx-1.5 px-1.5 py-0.2 rounded bg-slate-200 border border-slate-300 text-slate-800 font-black text-[10.5px] select-none shadow-2xs leading-none shrink-0">
                       -
                     </span>
 
                     {/* Main Sequential Digits */}
                     <span 
-                      className="tracking-wider font-black text-[13.5px] drop-shadow-2xs shrink-0"
+                      className="tracking-wider font-black text-[15px] drop-shadow-2xs shrink-0"
                       style={{ color: themeColors.primaryDark }}
                     >
                       {cleanPlateDigits}
@@ -337,38 +337,45 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                       borderColor: themeColors.plateBorder,
                     }}
                   >
-                    <span className="font-mono font-black text-[8px] tracking-wider">YEM</span>
-                    <span className="text-[7.5px] font-black mt-0.5">اليمن</span>
+                    <span className="font-mono font-black text-[9px] tracking-wider">YEM</span>
+                    <span className="text-[8px] font-black mt-0.5">اليمن</span>
                   </div>
 
                 </div>
 
                 {/* Dates below plate */}
-                <div className="flex items-center justify-between w-full max-w-[245px] text-[7.5px] font-semibold text-slate-600 mt-0.5 px-1">
+                <div className="flex items-center justify-between w-full max-w-[270px] text-[8px] font-semibold text-slate-600 mt-0.5 px-1">
                   <span>إصدار: <span className="font-mono font-bold text-slate-900">{data.issueDate || '2026/7/7'}</span></span>
                   <span className="text-slate-300 font-bold">•</span>
                   <span>انتهاء: <span className="font-mono font-bold text-slate-900">{data.expiryDate || '---'}</span></span>
                 </div>
               </div>
 
-              {/* Right: Plate Photo Dashed Box */}
+              {/* Right: Plate Photo Dashed Box - Expanded and Enlarged */}
               <div className="col-span-3 flex justify-end">
                 <div 
-                  className="w-[98px] h-[38px] border border-dashed rounded-lg flex items-center justify-center overflow-hidden p-0.5 relative"
+                  className="w-[130px] h-[48px] border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden p-0.5 relative shadow-2xs bg-white"
                   style={{ 
                     borderColor: themeColors.border,
                     backgroundColor: themeColors.bgLight,
                   }}
                 >
                   {data.vehiclePlatePhoto ? (
-                    <img src={data.vehiclePlatePhoto} alt="Plate" className="w-full h-full object-contain rounded-md" />
+                    <img 
+                      src={data.vehiclePlatePhoto} 
+                      alt="صورة لوحة المركبة" 
+                      className="w-full h-full object-contain rounded-lg bg-white" 
+                    />
                   ) : (
-                    <span 
-                      className="text-[8.5px] font-bold select-none opacity-80"
-                      style={{ color: themeColors.primary }}
-                    >
-                      صورة للوحة
-                    </span>
+                    <div className="flex flex-col items-center justify-center">
+                      <span 
+                        className="text-[9.5px] font-black select-none leading-tight"
+                        style={{ color: themeColors.primary }}
+                      >
+                        صورة لوحة الرقم
+                      </span>
+                      <span className="text-[7.5px] text-slate-500 mt-0.5">(مرفق اللوحة)</span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -579,13 +586,14 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                   <span 
                     className="font-mono font-black tracking-widest text-[9.5px]"
                     style={{ color: themeColors.primaryDark }}
+                    dir="ltr"
                   >
                     {data.vinNumber || 'KMJWA37R8FU641664'}
                   </span>
                 </div>
                 
-                {/* 17 Individual Rounded Character Boxes */}
-                <div className="flex items-center justify-between gap-0.5 pt-0.5">
+                {/* 17 Individual Rounded Character Boxes (Strictly Left-to-Right) */}
+                <div className="flex items-center justify-between gap-0.5 pt-0.5" dir="ltr">
                   {vinChars.map((char, idx) => (
                     <div
                       key={idx}
@@ -605,7 +613,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">رقم المحرك:</span>
-                  <span className="font-mono font-black text-slate-950">{data.engineNumber || '0'}</span>
+                  <span className="font-mono font-black text-slate-950" dir="ltr">{data.engineNumber || '0'}</span>
                 </div>
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">نوع الوقود:</span>

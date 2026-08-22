@@ -100,17 +100,17 @@ export const PlateVisualizer: React.FC<PlateVisualizerProps> = ({
   const style = getCategoryStyles();
 
   const sizeClasses = {
-    sm: 'max-w-[260px] h-[48px] text-xs',
-    md: 'max-w-[340px] h-[64px] text-sm',
-    lg: 'max-w-[420px] h-[78px] text-base',
-    full: 'w-full h-[70px] text-base',
+    sm: 'max-w-[280px] h-[52px] text-xs',
+    md: 'max-w-[380px] h-[72px] text-sm',
+    lg: 'max-w-[480px] h-[88px] text-base',
+    full: 'w-full h-[80px] text-base',
   }[size];
 
   const numberFontSize = {
-    sm: 'text-sm sm:text-base',
-    md: 'text-lg sm:text-xl',
-    lg: 'text-xl sm:text-2xl',
-    full: 'text-lg sm:text-xl',
+    sm: 'text-base sm:text-lg',
+    md: 'text-xl sm:text-2xl',
+    lg: 'text-2xl sm:text-3xl',
+    full: 'text-xl sm:text-2xl',
   }[size];
 
   return (

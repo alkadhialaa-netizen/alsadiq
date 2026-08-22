@@ -181,7 +181,7 @@ export const VehicleRegistryTable: React.FC<VehicleRegistryTableProps> = ({
 
                   {/* VIN */}
                   <td className="py-3 px-4">
-                    <span className="font-mono font-bold text-slate-800 text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    <span className="font-mono font-bold text-slate-800 text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200" dir="ltr">
                       {rec.vinNumber}
                     </span>
                     <div className="text-[10px] text-slate-500 font-mono mt-0.5">
