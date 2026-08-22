@@ -17,17 +17,24 @@ import {
   Eye,
   SlidersHorizontal
 } from 'lucide-react';
-import { VehicleRegistration } from './types';
+import { VehicleRegistration, UserAccount } from './types';
 import { sampleRegistrations, defaultNewRegistration } from './data/mockTemplates';
 import { RegistrationFormA4, FormTheme } from './components/RegistrationFormA4';
 import { RegistrationInputForm } from './components/RegistrationInputForm';
+import { NewRegistrationPage } from './components/NewRegistrationPage';
 import { VehicleRegistryTable } from './components/VehicleRegistryTable';
 import { Header } from './components/Header';
+import { LoginScreen } from './components/LoginScreen';
+import { UserManagementModal } from './components/UserManagementModal';
+import { getCurrentSession, logoutUser } from './utils/authService';
 import { exportToA4PDF, exportToImage, printDocument } from './utils/pdfExport';
 
 const STORAGE_KEY = 'vehicle_registrations_db_v1';
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentSession());
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState<boolean>(false);
+
   const [records, setRecords] = useState<VehicleRegistration[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -47,11 +54,12 @@ export default function App() {
     return records[0] || sampleRegistrations[0];
   });
 
-  const [activeView, setActiveView] = useState<'preview' | 'form' | 'registry'>('preview');
+  const [activeView, setActiveView] = useState<'preview' | 'new' | 'form' | 'registry'>('new');
   const [formTheme, setFormTheme] = useState<FormTheme>('classic');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportStep, setExportStep] = useState<string>('');
+  const [exportTargetRecord, setExportTargetRecord] = useState<VehicleRegistration | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +80,12 @@ export default function App() {
     }, 4000);
   };
 
+  const handleLogout = () => {
+    logoutUser();
+    setCurrentUser(null);
+    showToast('تم تسجيل الخروج بنجاح');
+  };
+
   // Handler for creating a new vehicle registration
   const handleNewRecord = () => {
     const newRegNum = `TRQ-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
@@ -85,27 +99,32 @@ export default function App() {
       registrationNumber: newRegNum,
       plateNumber: randomPlate,
       plateLetter: randomLetter,
+      officerName: currentUser ? (currentUser.username === 'صادق' || currentUser.username === 'sadeq' ? 'المقدم / صادق القاضي' : `${currentUser.rank || 'الملازم'} / ${currentUser.fullName}`) : 'المقدم / صادق القاضي',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     setCurrentRecord(fresh);
     setIsEditing(false);
-    setActiveView('form');
-    showToast('تم فتح استمارة ترقيم جديدة جاهزة للتعبئة');
+    setActiveView('new');
+    showToast('تم فتح صفحة ترقيم جديد منظمة - جاهزة للمطابقة والإدخال');
   };
 
-  // Save current record to state & database
-  const handleSaveRecord = () => {
-    if (!currentRecord.plateNumber) {
-      alert('يرجى كتابة رقم اللوحة / الترقيم');
-      return;
-    }
+  // Save current record to state & database safely
+  const handleSaveRecord = (customRecord?: VehicleRegistration) => {
+    const target = customRecord || currentRecord;
+
+    const finalPlateNumber = target.plateNumber?.trim() || Math.floor(10000 + Math.random() * 90000).toString();
+    const finalPlateLetter = target.plateLetter?.trim() || (target.plateCategory === 'commercial' ? 'نقل' : 'خصوصي');
+    const finalOfficerName = target.officerName || (currentUser ? (currentUser.username === 'صادق' || currentUser.username === 'sadeq' ? 'المقدم / صادق القاضي' : `${currentUser.rank || 'الملازم'} / ${currentUser.fullName}`) : 'المقدم / صادق القاضي');
 
     const recordToSave: VehicleRegistration = {
-      ...currentRecord,
-      id: currentRecord.id || `reg-${Date.now()}`,
-      registrationNumber: currentRecord.registrationNumber || `TRQ-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
+      ...target,
+      id: target.id || `reg-${Date.now()}`,
+      plateNumber: finalPlateNumber,
+      plateLetter: finalPlateLetter,
+      officerName: finalOfficerName,
+      registrationNumber: target.registrationNumber || `TRQ-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
       updatedAt: new Date().toISOString(),
     };
 
@@ -114,14 +133,35 @@ export default function App() {
     if (existsIndex >= 0) {
       updatedList = [...records];
       updatedList[existsIndex] = recordToSave;
-      showToast(`تم تحديث استمارة المركبة رقم (${recordToSave.plateNumber} ${recordToSave.plateLetter})`);
     } else {
       updatedList = [recordToSave, ...records];
-      showToast(`تم حفظ وترقيم المركبة بنجاح (${recordToSave.plateNumber} ${recordToSave.plateLetter})`);
     }
 
     setRecords(updatedList);
     setCurrentRecord(recordToSave);
+
+    // Persist to localStorage safely with quota protection
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
+    } catch (storageErr) {
+      console.warn('LocalStorage save warning, optimizing storage size...', storageErr);
+      try {
+        const optimized = updatedList.map((r, i) => {
+          if (i < 3) return r;
+          return {
+            ...r,
+            vehiclePlatePhoto: undefined,
+            ownerIdPhoto: undefined,
+            customsDocPhoto: undefined,
+          };
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(optimized));
+      } catch (innerErr) {
+        console.warn('Could not persist all records to localStorage', innerErr);
+      }
+    }
+
+    showToast(`تم حفظ الاستمارة وترقيم المركبة بنجاح (${recordToSave.plateNumber} ${recordToSave.plateLetter})`);
     setActiveView('preview');
   };
 
@@ -148,23 +188,27 @@ export default function App() {
   // PDF Export
   const handleExportPDF = async (targetRecord?: VehicleRegistration) => {
     const record = targetRecord || currentRecord;
+    setExportTargetRecord(record);
     if (targetRecord && targetRecord.id !== currentRecord.id) {
       setCurrentRecord(targetRecord);
     }
 
     setIsExporting(true);
-    const filename = `استمارة_ترقيم_مركبة_${record.plateNumber}_${record.plateLetter || ''}_${record.governorate}`.replace(/\s+/g, '_');
+    const filename = `استمارة_ترقيم_مركبة_${record.plateNumber || 'لوحة'}_${record.plateLetter || ''}_${record.governorate || 'تعز'}`.replace(/\s+/g, '_');
 
     try {
+      // Allow microtick for React state to update into DOM
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       await exportToA4PDF({
-        elementId: 'registration-a4-document',
+        elementId: activeView === 'preview' ? 'registration-a4-document' : 'registration-a4-export-target',
         filename,
         onProgress: (step) => setExportStep(step),
       });
       showToast('تم تصدير وتحميل استمارة PDF (A4) بنجاح');
     } catch (error) {
       console.error(error);
-      alert('حدث خطأ أثناء تصدير ملف PDF، يرجى المحاولة مرة أخرى.');
+      alert('حدث خطأ أثناء تصدير ملف PDF، يرجى المحاولة مرة أخرى أو استخدام خيار الطباعة المباشرة.');
     } finally {
       setIsExporting(false);
       setExportStep('');
@@ -174,16 +218,20 @@ export default function App() {
   // Image Export
   const handleExportImage = async (targetRecord?: VehicleRegistration) => {
     const record = targetRecord || currentRecord;
+    setExportTargetRecord(record);
     if (targetRecord && targetRecord.id !== currentRecord.id) {
       setCurrentRecord(targetRecord);
     }
 
     setIsExporting(true);
-    const filename = `استمارة_ترقيم_مركبة_صورة_${record.plateNumber}_${record.plateLetter || ''}_${record.governorate}`.replace(/\s+/g, '_');
+    const filename = `استمارة_ترقيم_مركبة_صورة_${record.plateNumber || 'لوحة'}_${record.plateLetter || ''}_${record.governorate || 'تعز'}`.replace(/\s+/g, '_');
 
     try {
+      // Allow microtick for React state to update into DOM
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       await exportToImage({
-        elementId: 'registration-a4-document',
+        elementId: activeView === 'preview' ? 'registration-a4-document' : 'registration-a4-export-target',
         filename,
         onProgress: (step) => setExportStep(step),
       });
@@ -265,6 +313,18 @@ export default function App() {
     showToast('تم تحميل البيانات والقوالب التجريبية بنجاح');
   };
 
+  // If user is not authenticated, show the official login screen
+  if (!currentUser) {
+    return (
+      <LoginScreen 
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          showToast(`تم تسجيل الدخول بنجاح. مرحباً بك سيادة: ${user.fullName}`);
+        }} 
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-between selection:bg-blue-600 selection:text-white">
       {/* Hidden file input for restore */}
@@ -289,6 +349,16 @@ export default function App() {
         isExporting={isExporting}
         exportStep={exportStep}
         totalRecordsCount={records.length}
+        currentUser={currentUser}
+        onOpenUserManagement={() => setIsUserManagementOpen(true)}
+        onLogout={handleLogout}
+      />
+
+      {/* User Management Modal */}
+      <UserManagementModal
+        isOpen={isUserManagementOpen}
+        onClose={() => setIsUserManagementOpen(false)}
+        currentUser={currentUser}
       />
 
       {/* Main Container */}
@@ -416,7 +486,28 @@ export default function App() {
           </div>
         )}
 
-        {/* View 2: Data Entry & Edit Form */}
+        {/* View 2: Organized New Registration Page (ترقيم جديد منظم) */}
+        {activeView === 'new' && (
+          <div className="space-y-4">
+            <NewRegistrationPage
+              currentData={currentRecord}
+              onChange={setCurrentRecord}
+              onSaveAndPreview={handleSaveRecord}
+              onSaveAndPrint={() => {
+                handleSaveRecord();
+                setTimeout(() => handlePrint(), 300);
+              }}
+              onSaveAndExportPDF={() => {
+                handleSaveRecord();
+                setTimeout(() => handleExportPDF(), 300);
+              }}
+              onResetToNew={handleNewRecord}
+              currentUser={currentUser}
+            />
+          </div>
+        )}
+
+        {/* View 3: Data Entry & Comprehensive Edit Form */}
         {activeView === 'form' && (
           <div className="space-y-4">
             <RegistrationInputForm
@@ -429,7 +520,7 @@ export default function App() {
           </div>
         )}
 
-        {/* View 3: Records Registry & Table */}
+        {/* View 4: Records Registry & Table */}
         {activeView === 'registry' && (
           <div className="space-y-4">
             <VehicleRegistryTable
@@ -472,14 +563,34 @@ export default function App() {
         )}
       </main>
 
+      {/* Universal Hidden Offscreen A4 Target for Instant PDF/Image Generation from Any View */}
+      <div 
+        aria-hidden="true" 
+        className="fixed -left-[9999px] top-0 pointer-events-none opacity-100 z-[-999] overflow-hidden"
+        style={{ width: '210mm', height: '297mm' }}
+      >
+        <RegistrationFormA4 
+          data={exportTargetRecord || currentRecord} 
+          id="registration-a4-export-target" 
+          theme={formTheme} 
+        />
+      </div>
+
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 no-print mt-8">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>© {new Date().getFullYear()} نظام ترقيم وتسجيل المركبات - استمارة رسمية قياس A4 قابلة للطباعة والتصدير</p>
-          <div className="flex items-center gap-3 font-semibold text-slate-600">
-            <span>تنسيق PDF: A4 Portrait</span>
-            <span>•</span>
-            <span>دقة التصدير: High-Definition 300DPI</span>
+      <footer className="bg-slate-900 border-t border-slate-800 py-4 text-center text-xs text-slate-400 no-print mt-8">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 text-slate-300">
+            <span className="font-bold text-white">الجمهورية اليمنية - الإدارة العامة للمرور تعز</span>
+            <span className="text-slate-600">•</span>
+            <span className="text-amber-300 font-bold">لجنة ترقيم الجمارك (المقدم / صادق القاضي)</span>
+          </div>
+          
+          <div className="flex items-center gap-3 font-semibold text-slate-400">
+            <span className="text-sky-300 font-bold bg-slate-800/80 px-2.5 py-1 rounded-md border border-slate-700">
+              مصمم النظام: المهندس / علاء القاضي
+            </span>
+            <span className="text-slate-600">•</span>
+            <span>استمارة A4 رسمية عالية الدقة 300DPI</span>
           </div>
         </div>
       </footer>

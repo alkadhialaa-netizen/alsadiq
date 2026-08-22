@@ -21,7 +21,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Eye,
-  Trash2
+  Trash2,
+  SlidersHorizontal
 } from 'lucide-react';
 import { VehicleRegistration, PlateCategory, VehicleType, FuelType, GuarantorInfo } from '../types';
 import { PlateVisualizer } from './PlateVisualizer';
@@ -31,7 +32,7 @@ import { AiCaptureModal, ScanType } from './AiCaptureModal';
 interface RegistrationInputFormProps {
   currentData: VehicleRegistration;
   onChange: (updated: VehicleRegistration) => void;
-  onSave: () => void;
+  onSave: (record?: VehicleRegistration) => void;
   onReset: () => void;
   isEditing?: boolean;
 }
@@ -174,13 +175,9 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
       onChange({
         ...currentData,
         vehiclePlatePhoto: imageBase64,
-        plateNumber: extracted.plateNumber || currentData.plateNumber,
-        plateLetter: extracted.plateLetter || currentData.plateLetter,
-        governorate: extracted.governorate || currentData.governorate,
-        plateCategory: (extracted.plateCategory as any) || currentData.plateCategory,
         updatedAt: new Date().toISOString(),
       });
-      showToast('تم حفظ صورة اللوحة والتعرف على الأرقام!');
+      showToast('تم حفظ وإرفاق صورة لوحة المركبة بنجاح في سجل وبيانات المركبة!');
     }
   };
 
@@ -300,11 +297,11 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => openScanner('plate-photo', 'تصوير / رفع صورة لوحة المركبة', 'التقط صورة اللوحة للتعرف الآلي على الأرقام')}
-            className="flex items-center gap-1.5 text-xs bg-blue-800 hover:bg-blue-700 text-white font-bold px-3 py-2 rounded-xl transition cursor-pointer"
+            onClick={() => setActiveTab('plate')}
+            className="flex items-center gap-1.5 text-xs bg-blue-700 hover:bg-blue-600 text-white font-bold px-3 py-2 rounded-xl transition cursor-pointer shadow-xs"
           >
-            <Camera className="w-4 h-4 text-amber-300" />
-            تصوير اللوحة
+            <SlidersHorizontal className="w-4 h-4 text-amber-300" />
+            تعديل رقم وصنف اللوحة يدوياً
           </button>
           <button
             type="button"
@@ -694,31 +691,148 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
             </div>
           </div>
 
-          {/* Vehicle Customs Photo Thumbnail if attached */}
-          {currentData.vehicleCustomsPhoto && (
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <img 
-                  src={currentData.vehicleCustomsPhoto} 
-                  alt="Customs Document" 
-                  className="w-16 h-12 object-cover rounded-lg border border-blue-300"
-                />
-                <div>
-                  <span className="text-xs font-bold text-blue-950 block">صورة البيان الجمركي المرفقة</span>
-                  <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> تم استخراج المواصفات بنجاح
-                  </span>
+          {/* Documents & Photos Grid (Customs Document + Plate Photo) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* Box 1: Customs Photo */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-black text-slate-800">صورة البيان الجمركي / وثيقة الشحن</span>
                 </div>
+                {currentData.vehicleCustomsPhoto && (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                    مرفق ✓
+                  </span>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => updateField('vehicleCustomsPhoto', undefined)}
-                className="text-xs font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
-              >
-                حذف المرفق
-              </button>
+
+              {currentData.vehicleCustomsPhoto ? (
+                <div className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src={currentData.vehicleCustomsPhoto} 
+                      alt="Customs Document" 
+                      className="w-16 h-12 object-cover rounded-lg border border-slate-300"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">وثيقة البيان الجمركي</span>
+                      <span className="text-[10px] text-slate-500">تم حفظ الوثيقة في سجل المعاملة</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openScanner('customs', 'استبدال صورة البيان الجمركي', 'التقط أو اختر صورة جديدة للبيان الجمركي')}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
+                    >
+                      استبدال
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateField('vehicleCustomsPhoto', undefined)}
+                      className="text-[11px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                    >
+                      حذف
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 border-2 border-dashed border-slate-300 rounded-xl bg-white text-center space-y-2">
+                  <p className="text-xs text-slate-500">لم يتم إرفاق صورة البيان الجمركي بعد</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openScanner('customs', 'تصوير البيان الجمركي', 'وجّه الكاميرا نحو ورقة البيان الجمركي')}
+                      className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg transition cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      تصوير
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openScanner('customs', 'رفع صورة البيان الجمركي', 'اختر صورة من جهازك')}
+                      className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      رفع صورة
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Box 2: Vehicle Plate Photo (Requested by User) */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-indigo-600" />
+                  <span className="text-xs font-black text-slate-800">صورة لوحة المركبة (اختيار / التقاط)</span>
+                </div>
+                {currentData.vehiclePlatePhoto && (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                    مرفق ✓
+                  </span>
+                )}
+              </div>
+
+              {currentData.vehiclePlatePhoto ? (
+                <div className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src={currentData.vehiclePlatePhoto} 
+                      alt="Vehicle Plate Photo" 
+                      className="w-16 h-12 object-cover rounded-lg border border-slate-300 shadow-2xs"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">صورة لوحة المركبة الحالية</span>
+                      <span className="text-[10px] text-slate-500">تم حفظ وإرفاق صورة اللوحة</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openScanner('plate-photo', 'استبدال صورة لوحة المركبة', 'التقط أو اختر صورة جديدة للوحة')}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
+                    >
+                      استبدال
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateField('vehiclePlatePhoto', undefined)}
+                      className="text-[11px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                    >
+                      حذف
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 border-2 border-dashed border-indigo-200 rounded-xl bg-white text-center space-y-2">
+                  <p className="text-xs text-slate-500">يمكنك التقاط أو اختيار صورة لوحة المركبة هنا</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openScanner('plate-photo', 'تصوير لوحة المركبة بالكاميرا', 'التقط صورة واضحة للوحة المركبة')}
+                      className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg transition cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      تصوير اللوحة
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openScanner('plate-photo', 'اختيار صورة اللوحة من المعرض', 'اختر صورة لوحة المركبة من جهازك')}
+                      className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      اختيار صورة اللوحة
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
 
           {/* Vehicle Specs Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1588,16 +1702,30 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
               </div>
             </div>
 
-            {/* Officer Name */}
+            {/* Officer Name / Technical Specialist */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                اسم الضابط / الموظف المصادق
+                مختص الفحص الفني
               </label>
               <input
                 type="text"
                 value={currentData.officerName}
                 onChange={(e) => updateField('officerName', e.target.value)}
-                placeholder="الرائد / المهندس..."
+                placeholder="الملازم / محمد بجاش الكمالي"
+                className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Director of Automated Issuance */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                مدير الإصدار الآلي
+              </label>
+              <input
+                type="text"
+                value={currentData.automatedIssuanceDirector || ''}
+                onChange={(e) => updateField('automatedIssuanceDirector', e.target.value)}
+                placeholder="العقيد / ماجد الحكيم"
                 className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1633,7 +1761,7 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={onSave}
+            onClick={() => onSave(currentData)}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md hover:shadow transition cursor-pointer"
           >
             <Save className="w-4 h-4" />

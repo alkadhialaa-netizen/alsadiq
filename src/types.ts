@@ -98,7 +98,9 @@ export interface VehicleRegistration {
   feeReceiptNumber: string;   // رقم إيصال الرسوم
   totalFeesPaid: number;      // الرسوم المدفوعة
   currency: string;           // العملة (ريال يمني، د.ع، ر.س...)
-  officerName: string;        // اسم الضابط / الموظف المختص
+  officerName: string;        // اسم الضابط / الموظف المختص (المختص الفني / رئيس اللجنة)
+  automatedIssuanceDirector?: string; // مدير الإصدار الآلي
+  technicalDeptHead?: string; // رئيس القسم الفني
   notes?: string;             // ملاحظات إضافية
 
   createdAt: string;
@@ -112,3 +114,22 @@ export interface SystemSettings {
   currency: string;
   officialSealText: string;
 }
+
+export type UserRole = 'admin' | 'officer' | 'inspector' | 'clerk';
+
+export interface UserAccount {
+  id: string;
+  username: string;
+  password: string;
+  fullName: string;
+  rank?: string;             // الرتبة العسكرية / المسمى الوظيفي
+  role: UserRole;            // الصلاحية
+  department: string;        // الإدارة / القسم
+  governorate: string;       // المحافظة
+  badgeNumber?: string;      // الرقم العسكري / رقم البطاقة الوظيفية
+  phone?: string;            // رقم الهاتف
+  isActive: boolean;         // حالة الحساب
+  createdAt: string;
+  lastLogin?: string;
+}
+

@@ -8,7 +8,7 @@ export const sampleRegistrations: VehicleRegistration[] = [
     formNumber: 'C2006',
     issueDate: '2026/7/7',
     expiryDate: '---',
-    trafficDepartment: 'الإدارة العامة للمرور - لجنة الترقيم الجمركي',
+    trafficDepartment: 'الإدارة العامة للمرور - تعز (لجنة ترقيم الجمارك)',
     governorate: 'تعز',
 
     plateNumber: '68742',
@@ -63,11 +63,12 @@ export const sampleRegistrations: VehicleRegistration[] = [
 
     inspectionStatus: 'passed',
     inspectionDate: '2026/7/7',
-    inspectionCenter: 'لجنة الفحص والترقيم الجمركي - فرع تعز',
+    inspectionCenter: 'لجنة ترقيم الجمارك - الإدارة العامة للمرور تعز',
     feeReceiptNumber: 'C2006',
     totalFeesPaid: 45000,
     currency: 'ريال يمني',
-    officerName: 'المختص الفني',
+    officerName: 'الملازم / محمد بجاش الكمالي',
+    automatedIssuanceDirector: 'العقيد / ماجد الحكيم',
     notes: 'تمت مطابقة بيانات الشاصي والمحرك وفحص الوثائق واستيفاء الشروط القانونية.',
 
     createdAt: new Date().toISOString(),

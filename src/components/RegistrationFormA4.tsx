@@ -1,5 +1,4 @@
 import React from 'react';
-import { QRCodeSVG } from 'qrcode.react';
 import { VehicleRegistration } from '../types';
 
 export type FormTheme = 'classic' | 'navy' | 'emerald' | 'crimson';
@@ -76,11 +75,11 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
   const plateDigits = data.plateNumber ? data.plateNumber.split('') : ['6', '8', '7', '4', '2'];
   const platePrefix = data.platePrefix || '4';
 
-  // Category in Arabic
+  // Category in Arabic: "خصوصي" if private, "نقل" if transport
   const categoryName = isTransport ? 'نقل'
     : data.plateCategory === 'taxi' ? 'أجرة' 
     : data.plateCategory === 'government' ? 'حكومي' 
-    : (data.plateLetter || 'خصوصي');
+    : 'خصوصي';
 
   // Formatted Plate Number representation
   const cleanPlateDigits = data.plateNumber || '68742';
@@ -142,30 +141,18 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
     : data.fuelType === 'electric' ? 'كهربائي' 
     : 'بترول';
 
-  // QR Code Payload
-  const qrData = JSON.stringify({
-    form: data.formNumber || 'C2006',
-    regNo: data.registrationNumber || 'REG-4843',
-    plate: formattedPlateNumber,
-    vin: data.vinNumber,
-    owner: data.ownerFullName,
-    idNo: data.ownerNationalId,
-    phone: data.ownerPhone,
-    type: categoryName,
-    gov: data.governorate,
-    dept: 'الإدارة العامة للمرور - لجنة الترقيم الجمركي',
-    verified: true,
-  });
-
   return (
-    <div className="w-full flex justify-center bg-slate-200/70 p-1 sm:p-4 overflow-x-auto print:p-0 print:bg-white">
-      {/* Exact A4 Canvas: 210mm x 297mm */}
+    <div className="w-full flex justify-center bg-slate-200/70 p-1 sm:p-3 overflow-x-auto print:p-0 print:bg-white print:m-0">
+      {/* Exact A4 Canvas: 210mm x 297mm (Strict Fixed Dimensions) */}
       <div
         id={id}
-        className="a4-page relative bg-white text-slate-900 mx-auto shadow-2xl print:shadow-none select-none"
+        className="a4-page relative bg-white text-slate-900 mx-auto shadow-xl print:shadow-none select-none shrink-0"
         style={{
           width: '210mm',
+          minWidth: '210mm',
+          maxWidth: '210mm',
           height: '297mm',
+          minHeight: '297mm',
           maxHeight: '297mm',
           padding: '7mm 8mm 6mm 8mm',
           boxSizing: 'border-box',
@@ -181,24 +168,24 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
       >
         {/* Outer Official Rounded Border (Blue for Private, Red for Transport) */}
         <div 
-          className="absolute inset-2 border-[2.5px] rounded-[24px] pointer-events-none z-20 transition-colors"
+          className="absolute inset-[6px] border-[2px] rounded-[18px] pointer-events-none z-20 transition-colors"
           style={{ borderColor: themeColors.outerBorder }}
         />
 
         {/* Security Watermark Background */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none z-0">
-          <div className="text-center rotate-[-25deg] space-y-4">
+          <div className="text-center rotate-[-25deg] space-y-3">
             <div 
-              className="text-7xl font-black tracking-widest"
+              className="text-6xl font-black tracking-widest"
               style={{ color: themeColors.watermark }}
             >
               الجمهورية اليمنية
             </div>
-            <div className="text-4xl font-black text-slate-900">
-              وزارة الداخلية - الإدارة العامة للمرور
+            <div className="text-3xl font-black text-slate-900">
+              وزارة الداخلية - الإدارة العامة للمرور تعز
             </div>
-            <div className="text-2xl font-bold font-mono tracking-widest">
-              OFFICIAL VEHICLE INSPECTION & NUMBERING CERTIFICATE
+            <div className="text-xl font-bold font-mono tracking-widest">
+              لجنة ترقيم الجمارك - تعز
             </div>
           </div>
         </div>
@@ -209,39 +196,45 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
           {/* ========================================================= */}
           {/* 1. Official Header with Emblems                           */}
           {/* ========================================================= */}
-          <div>
-            <div className="flex items-center justify-between px-2 pt-1">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between px-2 pt-0.5">
               
-              {/* Left Authority Badge */}
+              {/* Right Side: Republic of Yemen & Official Hierarchy */}
               <div className="flex items-center gap-2">
-                <TrafficAuthorityLogo />
-                <div className="text-right text-[9.5px] leading-tight text-slate-800">
-                  <p className="font-extrabold text-slate-900">وزارة الداخلية</p>
-                  <p className="font-bold text-[8.5px] text-slate-700">الإدارة العامة للمرور</p>
-                  <p className="font-mono text-[7px] text-slate-500 font-bold tracking-tight">TRAFFIC AUTHORITY</p>
+                <div 
+                  className="w-8 h-8 rounded-full border p-0.5 flex items-center justify-center bg-slate-50 shadow-2xs shrink-0"
+                  style={{ borderColor: themeColors.primaryDark }}
+                >
+                  <TrafficAuthorityLogo />
+                </div>
+                <div className="text-right text-[8.5px] leading-tight text-slate-800">
+                  <p className="font-extrabold text-slate-950 text-[9px]">الجمهورية اليمنية</p>
+                  <p className="font-bold text-[7.5px]">وزارة الداخلية</p>
+                  <p className="text-[7px] text-slate-700">الإدارة العامة للمرور - تعز</p>
+                  <p 
+                    className="text-[7.5px] font-black"
+                    style={{ color: themeColors.primaryDark }}
+                  >
+                    لجنة ترقيم الجمارك
+                  </p>
                 </div>
               </div>
 
               {/* Center Yemen Crest */}
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center shrink-0">
                 <YemenEagleCrest />
               </div>
 
-              {/* Right Authority Hierarchy */}
+              {/* Left Side: Department & English / Secondary Badge */}
               <div className="flex items-center gap-2">
-                <div className="text-left text-[9.5px] leading-tight text-slate-800">
-                  <p className="font-extrabold text-slate-950">الجمهورية اليمنية</p>
-                  <p className="font-bold text-[8.5px]">وزارة الداخلية</p>
-                  <p className="text-[8px] text-slate-700">الإدارة العامة للمرور</p>
-                  <p 
-                    className="text-[8px] font-bold"
-                    style={{ color: themeColors.primaryDark }}
-                  >
-                    لجنة الترقيم الجمركي
-                  </p>
+                <div className="text-left text-[8.5px] leading-tight text-slate-800">
+                  <p className="font-extrabold text-slate-900 text-[9px]">وزارة الداخلية</p>
+                  <p className="font-bold text-[7.5px] text-slate-700">الإدارة العامة للمرور - تعز</p>
+                  <p className="text-[7px] font-bold" style={{ color: themeColors.primaryDark }}>لجنة ترقيم الجمارك</p>
+                  <p className="font-mono text-[6px] text-slate-500 font-bold tracking-tight">TRAFFIC AUTHORITY - TAIZ</p>
                 </div>
                 <div 
-                  className="w-9 h-9 rounded-full border p-0.5 flex items-center justify-center bg-slate-50"
+                  className="w-8 h-8 rounded-full border p-0.5 flex items-center justify-center bg-slate-50 shadow-2xs shrink-0"
                   style={{ borderColor: themeColors.primaryDark }}
                 >
                   <TrafficAuthorityLogo />
@@ -251,9 +244,9 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
             </div>
 
             {/* Official Title */}
-            <div className="text-center -mt-1 mb-1">
+            <div className="text-center my-0.5">
               <h1 
-                className="text-[20px] font-black tracking-wide font-['Cairo'] inline-block relative"
+                className="text-[17px] font-black tracking-wide font-['Cairo'] inline-block relative leading-tight"
                 style={{ color: themeColors.primaryDark }}
               >
                 استمارة الفحص والترقيم
@@ -269,107 +262,109 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
             <div className="grid grid-cols-12 gap-2 items-center px-1">
               
               {/* Left: Serial Number & Metadata */}
-              <div className="col-span-3 text-right space-y-1 text-[10px]">
-                <div className="flex items-center gap-1 font-bold">
-                  <span className="text-slate-600">رقم تسلسلي :</span>
+              <div className="col-span-3 text-right space-y-1 text-[8.5px]">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <span className="text-slate-600 whitespace-nowrap">رقم تسلسلي :</span>
                   <span 
-                    className="font-mono font-black"
-                    style={{ color: themeColors.primary }}
+                    className="font-mono font-black text-[9.5px] px-1.5 py-0.5 rounded"
+                    style={{ backgroundColor: themeColors.bgLight, color: themeColors.primaryDark }}
                   >
-                    {data.serialNumber || data.registrationNumber || 'REG-4843'}
+                    {data.registrationSequenceNumber || data.serialNumber || '4-3580'}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 font-bold">
-                  <span className="text-slate-600">رقم اللوحة:</span>
-                  <span className="inline-flex items-center gap-1">
-                    <span 
-                      className="font-black text-[10px] px-1 py-0.2 rounded"
-                      style={{ 
-                        color: themeColors.primaryDark,
-                        backgroundColor: themeColors.bgLight,
-                      }}
-                    >
-                      {isTransport ? 'نقل' : 'خصوصي'}
-                    </span>
-                    <span className="font-mono font-black text-slate-950 tracking-wider" dir="ltr">
-                      {platePrefix ? `${platePrefix}-${cleanPlateDigits}` : cleanPlateDigits}
-                    </span>
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 font-bold">
-                  <span className="text-slate-600">رقم الاستمارة:</span>
-                  <span className="font-mono font-black text-slate-900">{data.formNumber || data.customsDeclarationNumber || 'C2006'}</span>
+                  <span className="text-slate-600 whitespace-nowrap">رقم الاستمارة:</span>
+                  <span className="font-mono font-black text-slate-900 text-[9px]">{data.formNumber || data.customsDeclarationNumber || 'C2006'}</span>
                 </div>
               </div>
 
               {/* Center: Official Plate Box with Issue Date */}
-              <div className="col-span-5 flex flex-col items-center">
+              <div className="col-span-6 flex flex-col items-center">
                 {/* Visual License Plate */}
                 <div 
-                  className="w-full max-w-[230px] border-[1.5px] rounded-xl overflow-hidden bg-white shadow-2xs flex items-stretch h-[44px]"
+                  className="w-full max-w-[245px] border-[1.5px] rounded-lg overflow-hidden bg-white shadow-2xs flex items-stretch h-[38px] relative"
                   style={{ borderColor: themeColors.plateBorder }}
                 >
-                  
-                  {/* Category Box (Side 1) */}
+                  {/* 1. Category Box: خصوصي أو نقل */}
                   <div 
-                    className="w-[32%] border-l flex items-center justify-center text-[12px] font-black tracking-wide"
+                    className="w-[28%] border-l-[1.5px] flex items-center justify-center text-center px-1 shrink-0 select-none"
                     style={{ 
                       borderColor: themeColors.plateBorder,
                       backgroundColor: themeColors.bgLight,
-                      color: themeColors.plateCategoryText,
                     }}
                   >
-                    {isTransport ? 'نقل' : 'خصوصي'}
+                    <span 
+                      className="text-[11.5px] font-black tracking-tight leading-none"
+                      style={{ color: themeColors.plateCategoryText }}
+                    >
+                      {categoryName}
+                    </span>
                   </div>
 
-                  {/* Prefix & Number (Middle Box - LTR with clean separation) */}
+                  {/* 2. Plate Number & Prefix Extension */}
                   <div 
-                    className="w-[48%] flex items-center justify-center font-mono font-black text-[16px] tracking-wider px-1"
+                    className="flex-1 flex items-center justify-center font-mono font-black px-1.5 bg-white relative min-w-0"
                     dir="ltr"
                   >
                     {platePrefix && (
-                      <span className="font-extrabold" style={{ color: themeColors.primary }}>
+                      <span 
+                        className="font-black text-[13.5px] tracking-tight shrink-0"
+                        style={{ color: themeColors.primaryDark }}
+                      >
                         {platePrefix}
                       </span>
                     )}
-                    <span className="mx-1.5 text-slate-400 font-normal select-none">-</span>
-                    <span className="tracking-widest" style={{ color: themeColors.primaryDark }}>
+
+                    {/* Clear, Compact Separator */}
+                    <span className="mx-1.5 px-1 py-0.2 rounded bg-slate-200 border border-slate-300 text-slate-800 font-black text-[9.5px] select-none shadow-2xs leading-none shrink-0">
+                      -
+                    </span>
+
+                    {/* Main Sequential Digits */}
+                    <span 
+                      className="tracking-wider font-black text-[13.5px] drop-shadow-2xs shrink-0"
+                      style={{ color: themeColors.primaryDark }}
+                    >
                       {cleanPlateDigits}
                     </span>
                   </div>
 
-                  {/* YEM / Yemen Country Box (Side 2) */}
+                  {/* 3. Yemen Country Box */}
                   <div 
-                    className="w-[20%] text-white flex flex-col items-center justify-center py-0.5 leading-none shrink-0"
-                    style={{ backgroundColor: themeColors.plateBg }}
+                    className="w-[18%] text-white flex flex-col items-center justify-center py-0.5 leading-none shrink-0 border-r-[1.5px] select-none"
+                    style={{ 
+                      backgroundColor: themeColors.plateBg,
+                      borderColor: themeColors.plateBorder,
+                    }}
                   >
-                    <span className="font-mono font-black text-[9px] tracking-wider">YEM</span>
-                    <span className="text-[8.5px] font-bold mt-0.5">اليمن</span>
+                    <span className="font-mono font-black text-[8px] tracking-wider">YEM</span>
+                    <span className="text-[7.5px] font-black mt-0.5">اليمن</span>
                   </div>
 
                 </div>
 
                 {/* Dates below plate */}
-                <div className="flex items-center justify-between w-full max-w-[220px] text-[8.5px] font-semibold text-slate-600 mt-1 px-1">
+                <div className="flex items-center justify-between w-full max-w-[245px] text-[7.5px] font-semibold text-slate-600 mt-0.5 px-1">
                   <span>إصدار: <span className="font-mono font-bold text-slate-900">{data.issueDate || '2026/7/7'}</span></span>
+                  <span className="text-slate-300 font-bold">•</span>
                   <span>انتهاء: <span className="font-mono font-bold text-slate-900">{data.expiryDate || '---'}</span></span>
                 </div>
               </div>
 
               {/* Right: Plate Photo Dashed Box */}
-              <div className="col-span-4 flex justify-end">
+              <div className="col-span-3 flex justify-end">
                 <div 
-                  className="w-[140px] h-[52px] border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden p-0.5 relative"
+                  className="w-[98px] h-[38px] border border-dashed rounded-lg flex items-center justify-center overflow-hidden p-0.5 relative"
                   style={{ 
                     borderColor: themeColors.border,
                     backgroundColor: themeColors.bgLight,
                   }}
                 >
                   {data.vehiclePlatePhoto ? (
-                    <img src={data.vehiclePlatePhoto} alt="Plate" className="w-full h-full object-contain rounded-lg" />
+                    <img src={data.vehiclePlatePhoto} alt="Plate" className="w-full h-full object-contain rounded-md" />
                   ) : (
                     <span 
-                      className="text-[10px] font-bold select-none opacity-80"
+                      className="text-[8.5px] font-bold select-none opacity-80"
                       style={{ color: themeColors.primary }}
                     >
                       صورة للوحة
@@ -384,11 +379,11 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
           {/* ========================================================= */}
           {/* 2. Section I: Personal Data & Address (بيانات المالك)     */}
           {/* ========================================================= */}
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             
             {/* Pill Header Bar */}
             <div 
-              className="text-white px-3 py-0.5 rounded-full flex items-center justify-between text-[10px] font-extrabold shadow-2xs"
+              className="text-white px-2.5 py-0.5 rounded-full flex items-center justify-between text-[8.5px] font-extrabold shadow-2xs"
               style={{ backgroundColor: themeColors.pillBg }}
             >
               <span className="flex items-center gap-1.5">
@@ -400,58 +395,58 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
 
             {/* Content Box */}
             <div 
-              className="border-[1.5px] rounded-2xl p-2.5 bg-white flex items-center gap-3"
+              className="border rounded-lg p-2 bg-white flex items-center gap-2.5"
               style={{ borderColor: themeColors.border }}
             >
               
               {/* Right: Personal Data Grid */}
-              <div className="flex-1 space-y-1.5 text-[9.5px]">
+              <div className="flex-1 space-y-1 text-[9px]">
                 
                 {/* Row 1: Full Name & Phone */}
-                <div className="grid grid-cols-12 gap-2 border-b border-dotted border-slate-300 pb-1">
-                  <div className="col-span-7 flex items-baseline gap-1">
+                <div className="grid grid-cols-12 gap-2">
+                  <div className="col-span-7 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">الاسم الرباعي:</span>
-                    <span className="font-black text-slate-950 text-[10.5px] truncate">{data.ownerFullName || 'محمد صالح مثنى راجح'}</span>
+                    <span className="font-black text-slate-950 text-[9.5px] truncate">{data.ownerFullName || 'محمد صالح مثنى راجح'}</span>
                   </div>
-                  <div className="col-span-5 flex items-baseline gap-1">
+                  <div className="col-span-5 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">رقم الهاتف:</span>
                     <span className="font-mono font-bold text-slate-900">{data.ownerPhone || '779797629'}</span>
                   </div>
                 </div>
 
                 {/* Row 2: Birth Date & Blood Type */}
-                <div className="grid grid-cols-12 gap-2 border-b border-dotted border-slate-300 pb-1">
-                  <div className="col-span-7 flex items-baseline gap-1">
+                <div className="grid grid-cols-12 gap-2">
+                  <div className="col-span-7 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">تاريخ الميلاد:</span>
                     <span className="font-mono font-semibold text-slate-800">{data.ownerBirthDate || '---'}</span>
                   </div>
-                  <div className="col-span-5 flex items-baseline gap-1">
+                  <div className="col-span-5 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">فصيلة الدم:</span>
                     <span className="font-mono font-black text-rose-800">{data.ownerBloodType || 'A+'}</span>
                   </div>
                 </div>
 
                 {/* Row 3: ID Type & National ID */}
-                <div className="grid grid-cols-12 gap-2 border-b border-dotted border-slate-300 pb-1">
-                  <div className="col-span-7 flex items-baseline gap-1">
+                <div className="grid grid-cols-12 gap-2">
+                  <div className="col-span-7 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">نوع الهوية:</span>
                     <span className="font-bold text-slate-900">{data.ownerIdType || 'بطاقة شخصية'}</span>
                   </div>
-                  <div className="col-span-5 flex items-baseline gap-1">
+                  <div className="col-span-5 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">رقم الهوية:</span>
                     <span className="font-mono font-black text-slate-950">{data.ownerNationalId || '04310027725'}</span>
                   </div>
                 </div>
 
                 {/* Row 4: Issue Place & Current Address */}
-                <div className="grid grid-cols-12 gap-2 pt-0.5">
-                  <div className="col-span-4 flex items-baseline gap-1">
+                <div className="grid grid-cols-12 gap-2">
+                  <div className="col-span-4 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">مكان الإصدار:</span>
                     <span className="font-bold text-slate-900 truncate">{data.ownerIdIssuePlace || `مركز سامع ${data.governorate || 'تعز'}`}</span>
                   </div>
-                  <div className="col-span-8 flex items-baseline gap-1">
+                  <div className="col-span-8 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">العنوان الحالي:</span>
-                    <span className="font-bold text-slate-950 text-[9px] leading-tight truncate">
+                    <span className="font-bold text-slate-950 text-[8.5px] leading-tight truncate">
                       {data.ownerAddress || 'تعز_التعزية_الحوبان_قرية قرانة_جوار مدرسة الشهيد ابو شهاب'}
                     </span>
                   </div>
@@ -461,17 +456,17 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
 
               {/* Left: 4x6 Portrait Photo Box */}
               <div 
-                className="w-[68px] h-[82px] border-[1.5px] rounded-xl flex flex-col items-center justify-center p-0.5 shrink-0 overflow-hidden shadow-2xs"
+                className="w-[58px] h-[68px] border rounded-lg flex flex-col items-center justify-center p-0.5 shrink-0 overflow-hidden shadow-2xs"
                 style={{ 
                   borderColor: themeColors.border,
                   backgroundColor: themeColors.bgLight,
                 }}
               >
                 {data.ownerPhoto ? (
-                  <img src={data.ownerPhoto} alt="Owner 4x6" className="w-full h-full object-cover rounded-lg" />
+                  <img src={data.ownerPhoto} alt="Owner 4x6" className="w-full h-full object-cover rounded-md" />
                 ) : (
                   <div className="text-center text-slate-400 font-bold">
-                    <span className="text-[9px] block">صورة 6×4</span>
+                    <span className="text-[8px] block">صورة 6×4</span>
                   </div>
                 )}
               </div>
@@ -482,11 +477,11 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
           {/* ========================================================= */}
           {/* 3. Section II: Technical Vehicle Data                     */}
           {/* ========================================================= */}
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             
             {/* Pill Header Bar */}
             <div 
-              className="text-white px-3 py-0.5 rounded-full flex items-center justify-between text-[10px] font-extrabold shadow-2xs"
+              className="text-white px-2.5 py-0.5 rounded-full flex items-center justify-between text-[8.5px] font-extrabold shadow-2xs"
               style={{ backgroundColor: themeColors.pillBg }}
             >
               <span className="flex items-center gap-1.5">
@@ -498,82 +493,91 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
 
             {/* Content Box */}
             <div 
-              className="border-[1.5px] rounded-2xl p-2.5 bg-white space-y-1.5 text-[9.5px]"
+              className="border rounded-lg p-2 bg-white space-y-1 text-[8.5px]"
               style={{ borderColor: themeColors.border }}
             >
               
               {/* Row 1: Plate Number & Plate Type */}
-              <div className="grid grid-cols-12 gap-2 border-b border-dotted border-slate-300 pb-1">
-                <div className="col-span-6 flex items-baseline gap-1.5">
-                  <span className="text-slate-600 font-bold whitespace-nowrap">رقم اللوحة:</span>
-                  <div className="inline-flex items-center gap-1 font-bold">
+              <div className="grid grid-cols-12 gap-2 items-center">
+                <div className="col-span-6 flex items-center gap-1.5">
+                  <span className="text-slate-600 font-bold whitespace-nowrap text-[8.5px]">رقم اللوحة:</span>
+                  <div 
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border font-bold shadow-2xs"
+                    style={{ 
+                      borderColor: themeColors.border,
+                      backgroundColor: themeColors.bgLight,
+                    }}
+                  >
                     <span 
-                      className="font-black text-[9.5px] px-1.5 py-0.2 rounded"
-                      style={{ 
-                        color: themeColors.primaryDark,
-                        backgroundColor: themeColors.bgLight,
-                      }}
+                      className="font-black text-[9px]"
+                      style={{ color: themeColors.primaryDark }}
                     >
-                      {isTransport ? 'نقل' : 'خصوصي'}
+                      {categoryName}
                     </span>
-                    <span className="font-mono font-black text-slate-950 tracking-wider" dir="ltr">
-                      {platePrefix ? `${platePrefix}-${cleanPlateDigits}` : cleanPlateDigits}
+                    <span className="text-slate-400 font-black">|</span>
+                    <span className="font-mono font-black text-slate-950 text-[10.5px] tracking-wide" dir="ltr">
+                      {platePrefix ? `${platePrefix} - ${cleanPlateDigits}` : cleanPlateDigits}
                     </span>
                   </div>
                 </div>
-                <div className="col-span-6 flex items-baseline gap-1">
-                  <span className="text-slate-600 font-bold whitespace-nowrap">نوع اللوحة:</span>
-                  <span 
-                    className="font-bold"
-                    style={{ color: themeColors.primaryDark }}
-                  >
-                    {isTransport ? 'نقل' : 'خصوصي'}
-                  </span>
+                <div className="col-span-6 flex items-center gap-1.5">
+                  <span className="text-slate-600 font-bold whitespace-nowrap text-[8.5px]">نوع وفئة اللوحة:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span 
+                      className="px-2 py-0.5 rounded text-[8.5px] font-black text-white"
+                      style={{ backgroundColor: themeColors.primaryDark }}
+                    >
+                      {categoryName}
+                    </span>
+                    <span className="text-slate-500 font-bold text-[7.5px]">
+                      ({isTransport ? 'لوحة حمراء - نقل جمركي' : 'لوحة زرقاء - خصوصي'})
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {/* Row 2: Make & Vehicle Type */}
-              <div className="grid grid-cols-12 gap-2 border-b border-dotted border-slate-300 pb-1">
-                <div className="col-span-6 flex items-baseline gap-1">
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">الماركة:</span>
                   <span className="font-black text-slate-950">{data.make || 'هونداي'}</span>
                 </div>
-                <div className="col-span-6 flex items-baseline gap-1">
+                <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">نوع المركبة:</span>
                   <span className="font-bold text-slate-900">{vehicleTypeName}</span>
                 </div>
               </div>
 
               {/* Row 3: Body Shape & Color */}
-              <div className="grid grid-cols-12 gap-2 border-b border-dotted border-slate-300 pb-1">
-                <div className="col-span-6 flex items-baseline gap-1">
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">الشكل:</span>
                   <span className="font-bold text-slate-800">{data.vehicleBodyShape || '---'}</span>
                 </div>
-                <div className="col-span-6 flex items-baseline gap-1">
+                <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">اللون:</span>
                   <span className="font-black text-slate-950">{data.color || 'ابيض'}</span>
                 </div>
               </div>
 
               {/* Row 4: Manufacturing Year & Model/Trim */}
-              <div className="grid grid-cols-12 gap-2 border-b border-dotted border-slate-300 pb-1">
-                <div className="col-span-6 flex items-baseline gap-1">
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">سنة الصنع:</span>
                   <span className="font-mono font-black text-slate-950">{data.year || 2015}</span>
                 </div>
-                <div className="col-span-6 flex items-baseline gap-1">
+                <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">الطراز:</span>
                   <span className="font-bold text-slate-800">{data.vehicleModelTrim || data.model || '---'}</span>
                 </div>
               </div>
 
               {/* Row 5: VIN / Chassis with 17 Distinct Letter Boxes */}
-              <div className="border-b border-dotted border-slate-300 pb-1 space-y-1">
-                <div className="flex items-baseline gap-2">
+              <div className="space-y-0.5">
+                <div className="flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">رقم القاعدة VIN:</span>
                   <span 
-                    className="font-mono font-black tracking-widest text-[10.5px]"
+                    className="font-mono font-black tracking-widest text-[9.5px]"
                     style={{ color: themeColors.primaryDark }}
                   >
                     {data.vinNumber || 'KMJWA37R8FU641664'}
@@ -585,7 +589,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                   {vinChars.map((char, idx) => (
                     <div
                       key={idx}
-                      className="flex-1 h-[22px] border-[1.5px] rounded-[5px] bg-white flex items-center justify-center font-mono font-black text-[10px] shadow-2xs"
+                      className="flex-1 h-[17px] border rounded-[3px] bg-white flex items-center justify-center font-mono font-black text-[8.5px] shadow-2xs"
                       style={{ 
                         borderColor: themeColors.vinBorder,
                         color: themeColors.vinText,
@@ -598,31 +602,31 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
               </div>
 
               {/* Row 6: Engine Number & Fuel Type */}
-              <div className="grid grid-cols-12 gap-2 border-b border-dotted border-slate-300 pb-1">
-                <div className="col-span-6 flex items-baseline gap-1">
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">رقم المحرك:</span>
                   <span className="font-mono font-black text-slate-950">{data.engineNumber || '0'}</span>
                 </div>
-                <div className="col-span-6 flex items-baseline gap-1">
+                <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">نوع الوقود:</span>
                   <span className="font-bold text-slate-900">{fuelName}</span>
                 </div>
               </div>
 
               {/* Row 7: Cylinders & Customs Declaration Number */}
-              <div className="grid grid-cols-12 gap-2 border-b border-dotted border-slate-300 pb-1">
-                <div className="col-span-6 flex items-baseline gap-1">
+              <div className="grid grid-cols-12 gap-2">
+                <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">عدد الأسطوانات:</span>
                   <span className="font-mono font-black text-slate-950">{data.cylindersCount || 4}</span>
                 </div>
-                <div className="col-span-6 flex items-baseline gap-1">
+                <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">رقم البيان الجمركي:</span>
                   <span className="font-mono font-black text-slate-950">{data.customsDeclarationNumber || data.formNumber || 'C2006'}</span>
                 </div>
               </div>
 
               {/* Row 8: Customs Issuing Office */}
-              <div className="flex items-baseline gap-1 pt-0.5">
+              <div className="flex items-baseline gap-1.5">
                 <span className="text-slate-600 font-bold whitespace-nowrap">جهة إصدار البيان:</span>
                 <span className="font-black text-slate-950">{data.customsIssuingOffice || data.governorate || 'تعز'}</span>
               </div>
@@ -633,11 +637,11 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
           {/* ========================================================= */}
           {/* 4. Section III: Guarantors & Witnesses (بيانات المعرفين) */}
           {/* ========================================================= */}
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             
             {/* Pill Header Bar */}
             <div 
-              className="text-white px-3 py-0.5 rounded-full flex items-center justify-between text-[10px] font-extrabold shadow-2xs"
+              className="text-white px-2.5 py-0.5 rounded-full flex items-center justify-between text-[8.5px] font-extrabold shadow-2xs"
               style={{ backgroundColor: themeColors.pillBg }}
             >
               <span className="flex items-center gap-1.5">
@@ -648,59 +652,58 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
             </div>
 
             {/* Two Side-by-Side Guarantor Cards */}
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               
               {/* Guarantor 1 Box */}
               <div 
-                className="border-[1.5px] rounded-2xl p-2 bg-white relative space-y-1 text-[9px]"
+                className="border rounded-lg p-2 bg-white relative space-y-1 text-[8.5px]"
                 style={{ borderColor: themeColors.border }}
               >
                 {/* Header Tab */}
                 <div 
-                  className="flex justify-between items-center border-b pb-0.5"
-                  style={{ borderColor: `${themeColors.border}40` }}
+                  className="flex justify-between items-center pb-0.5 border-b border-slate-100"
                 >
                   <span 
-                    className="font-black text-[10px]"
+                    className="font-black text-[9px]"
                     style={{ color: themeColors.primaryDark }}
                   >
                     المعرف الأول
                   </span>
-                  <span className="text-[7.5px] text-slate-400 font-mono font-bold">GUARANTOR-01</span>
+                  <span className="text-[7px] text-slate-400 font-mono font-bold">GUARANTOR-01</span>
                 </div>
 
                 <div className="space-y-1 pt-0.5">
-                  <div className="flex items-baseline gap-1 border-b border-dotted border-slate-200 pb-0.5">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">الاسم:</span>
                     <span className="font-black text-slate-950 truncate">
                       {data.guarantor1?.fullName || 'محمد عبده علي علي قائد البركاني'}
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-1 border-b border-dotted border-slate-200 pb-0.5">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">الرقم الوطني:</span>
                     <span className="font-mono font-black text-slate-900">
                       {data.guarantor1?.nationalId || '04110042835'}
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-1 border-b border-dotted border-slate-200 pb-0.5">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">نوع القرابة:</span>
                     <span className="font-bold text-slate-800">
                       {data.guarantor1?.relationship || 'معرف'}
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-1 border-b border-dotted border-slate-200 pb-0.5">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">رقم الهاتف:</span>
                     <span className="font-mono font-bold text-slate-900">
                       {data.guarantor1?.phone || '772112313'}
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-1">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">العنوان:</span>
-                    <span className="font-semibold text-slate-950 text-[8px] leading-tight line-clamp-2">
+                    <span className="font-semibold text-slate-950 text-[8px] leading-tight truncate">
                       {data.guarantor1?.address || 'تعز_التعزية_الحوبان_قرية قرانة_جوار مدرسة الشهيد ابو شهاب'}
                     </span>
                   </div>
@@ -709,55 +712,54 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
 
               {/* Guarantor 2 Box */}
               <div 
-                className="border-[1.5px] rounded-2xl p-2 bg-white relative space-y-1 text-[9px]"
+                className="border rounded-lg p-2 bg-white relative space-y-1 text-[8.5px]"
                 style={{ borderColor: themeColors.border }}
               >
                 {/* Header Tab */}
                 <div 
-                  className="flex justify-between items-center border-b pb-0.5"
-                  style={{ borderColor: `${themeColors.border}40` }}
+                  className="flex justify-between items-center pb-0.5 border-b border-slate-100"
                 >
                   <span 
-                    className="font-black text-[10px]"
+                    className="font-black text-[9px]"
                     style={{ color: themeColors.primaryDark }}
                   >
                     المعرف الثاني
                   </span>
-                  <span className="text-[7.5px] text-slate-400 font-mono font-bold">GUARANTOR-02</span>
+                  <span className="text-[7px] text-slate-400 font-mono font-bold">GUARANTOR-02</span>
                 </div>
 
                 <div className="space-y-1 pt-0.5">
-                  <div className="flex items-baseline gap-1 border-b border-dotted border-slate-200 pb-0.5">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">الاسم:</span>
                     <span className="font-black text-slate-950 truncate">
                       {data.guarantor2?.fullName || 'عزالدين عبده علي علي قائد البركاني'}
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-1 border-b border-dotted border-slate-200 pb-0.5">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">الرقم الوطني:</span>
                     <span className="font-mono font-black text-slate-900">
                       {data.guarantor2?.nationalId || '04610011437'}
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-1 border-b border-dotted border-slate-200 pb-0.5">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">نوع القرابة:</span>
                     <span className="font-bold text-slate-800">
                       {data.guarantor2?.relationship || 'معرف'}
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-1 border-b border-dotted border-slate-200 pb-0.5">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">رقم الهاتف:</span>
                     <span className="font-mono font-bold text-slate-900">
                       {data.guarantor2?.phone || '734402762'}
                     </span>
                   </div>
 
-                  <div className="flex items-baseline gap-1">
+                  <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">العنوان:</span>
-                    <span className="font-semibold text-slate-950 text-[8px] leading-tight line-clamp-2">
+                    <span className="font-semibold text-slate-950 text-[8px] leading-tight truncate">
                       {data.guarantor2?.address || 'تعز_التعزية_الحوبان_قرية قرانة_جوار مدرسة الشهيد ابو شهاب'}
                     </span>
                   </div>
@@ -768,62 +770,83 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
           </div>
 
           {/* ========================================================= */}
-          {/* 5. Section IV: Official Signatures & Digital Verification */}
+          {/* 5. Section IV: Official Signatures & Seal                */}
           {/* ========================================================= */}
           <div className="pt-1">
             
             {/* Top Separator Bar */}
             <div 
-              className="w-full h-[2px] rounded-full mb-3"
+              className="w-full h-[1.5px] rounded-full mb-2"
               style={{ backgroundColor: themeColors.outerBorder }}
             />
 
-            <div className="flex items-end justify-between px-3">
+            <div className="flex items-end justify-between px-2 gap-2">
               
-              {/* Digital Verification QR on Left */}
-              <div className="flex flex-col items-center">
-                <div 
-                  className="w-12 h-12 border-[1.5px] rounded-lg p-1 bg-white shadow-2xs flex items-center justify-center"
-                  style={{ borderColor: themeColors.outerBorder }}
-                >
-                  <QRCodeSVG
-                    value={qrData}
-                    size={38}
-                    level="M"
-                    includeMargin={false}
-                  />
+              {/* 3 Spacious Official Signature Columns (Chairman -> Specialist -> Director at the end) */}
+              <div className="flex-1 grid grid-cols-3 gap-2 items-end text-center">
+                
+                {/* 1. Chairman of Customs Numbering Committee (رئيس لجنة ترقيم الجمارك) */}
+                <div className="flex flex-col items-center">
+                  <div className="text-[10px] font-black text-blue-950 pb-0.5 whitespace-nowrap truncate max-w-full">
+                    المقدم / صادق القاضي
+                  </div>
+                  <div className="w-full max-w-[125px] border-b-[1.5px] border-slate-700 my-0.5" />
+                  <span className="text-[9px] font-black text-slate-950 whitespace-nowrap">رئيس لجنة ترقيم الجمارك</span>
                 </div>
-                <span 
-                  className="text-[9px] font-black mt-1"
-                  style={{ color: themeColors.primaryDark }}
+
+                {/* 2. Technical Specialist (مختص الفحص الفني) */}
+                <div className="flex flex-col items-center">
+                  <div className="text-[10px] font-black text-slate-950 pb-0.5 whitespace-nowrap truncate max-w-full">
+                    {data.officerName && !data.officerName.includes('صادق') ? (data.officerName.startsWith('الملازم') ? data.officerName : `الملازم / ${data.officerName}`) : 'الملازم / محمد بجاش الكمالي'}
+                  </div>
+                  <div className="w-full max-w-[125px] border-b-[1.5px] border-slate-700 my-0.5" />
+                  <span className="text-[9px] font-black text-slate-950 whitespace-nowrap">مختص الفحص الفني</span>
+                </div>
+
+                {/* 3. Director of Automated Issuance (مدير الإصدار الآلي - في الأخير) */}
+                <div className="flex flex-col items-center">
+                  <div className="text-[10px] font-black text-blue-950 pb-0.5 whitespace-nowrap truncate max-w-full">
+                    {data.automatedIssuanceDirector || 'العقيد / ماجد الحكيم'}
+                  </div>
+                  <div className="w-full max-w-[125px] border-b-[1.5px] border-slate-700 my-0.5" />
+                  <span className="text-[9px] font-black text-slate-950 whitespace-nowrap">مدير الإصدار الآلي</span>
+                </div>
+
+              </div>
+
+              {/* Official Circular Seal: الإدارة العامة للمرور - تعز */}
+              <div className="flex flex-col items-center justify-center shrink-0 select-none">
+                <div 
+                  className="w-14 h-14 rounded-full border-2 border-double border-blue-900 flex flex-col items-center justify-center p-0.5 text-center bg-blue-50/20 shadow-2xs relative rotate-[-2deg]"
+                  style={{ borderColor: themeColors.primaryDark }}
                 >
-                  التوثيق الرقمي
+                  {/* Inner dashed ring */}
+                  <div className="absolute inset-[2px] rounded-full border border-dashed border-blue-800/60 pointer-events-none" />
+                  
+                  <span className="text-[6.5px] font-black text-blue-950 leading-tight">
+                    الجمهورية اليمنية
+                  </span>
+                  <span className="text-[5.5px] font-bold text-slate-700 leading-tight">
+                    شرطة السير - تعز
+                  </span>
+                  <span className="text-[8px] font-black text-blue-900 leading-none my-0.2">
+                    🦅
+                  </span>
+                  <span className="text-[6px] font-black text-blue-950 bg-blue-100/80 px-1 py-0.2 rounded leading-tight">
+                    لجنة الترقيم
+                  </span>
+                </div>
+                <span className="text-[7.5px] font-black text-blue-900 mt-0.5">
+                  ختم الإدارة المعتمد
                 </span>
               </div>
 
-              {/* 3 Signature Lines */}
-              <div className="flex-1 flex justify-around items-end pr-4 text-center">
-                
-                {/* Director of Automated Issuance */}
-                <div className="flex flex-col items-center">
-                  <div className="w-28 border-b-2 border-slate-700 mb-1" />
-                  <span className="text-[9.5px] font-black text-slate-900">مدير الإصدار الآلي</span>
-                </div>
+            </div>
 
-                {/* Head of Technical Department */}
-                <div className="flex flex-col items-center">
-                  <div className="w-28 border-b-2 border-slate-700 mb-1" />
-                  <span className="text-[9.5px] font-black text-slate-900">رئيس القسم الفني</span>
-                </div>
-
-                {/* Technical Specialist */}
-                <div className="flex flex-col items-center">
-                  <div className="w-28 border-b-2 border-slate-700 mb-1" />
-                  <span className="text-[9.5px] font-black text-slate-900">المختص الفني</span>
-                </div>
-
-              </div>
-
+            {/* Official Bottom Credits Bar on A4 Page */}
+            <div className="pt-1 mt-1 border-t border-slate-200/80 flex items-center justify-between text-[7.5px] text-slate-500 font-bold px-1">
+              <span>الإدارة العامة للمرور تعز - لجنة ترقيم الجمارك • رئيس اللجنة: المقدم / صادق القاضي</span>
+              <span className="font-mono text-slate-600">مصمم ومطور النظام: المهندس / علاء القاضي</span>
             </div>
           </div>
 

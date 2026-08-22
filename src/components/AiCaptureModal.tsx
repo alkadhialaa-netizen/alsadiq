@@ -103,23 +103,57 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
     };
   }, [isOpen, activeTab, startCamera, stopCamera]);
 
+  // Compress and resize image to prevent localStorage QuotaExceededError
+  const compressImage = (dataUrl: string, maxWidth = 1000, quality = 0.8): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+
+        if (width > maxWidth || height > maxWidth) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } else {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  };
+
   // Capture frame from video
-  const handleCaptureSnapshot = () => {
+  const handleCaptureSnapshot = async () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
+    canvas.width = video.videoWidth || 1000;
+    canvas.height = video.videoHeight || 700;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    setSelectedImage(dataUrl);
+    const rawDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const compressed = await compressImage(rawDataUrl, 1000, 0.8);
+    setSelectedImage(compressed);
     stopCamera();
 
     if (!isPurePhoto) {
-      triggerAiExtraction(dataUrl);
+      triggerAiExtraction(compressed);
     }
   };
 
@@ -129,12 +163,13 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      setSelectedImage(dataUrl);
+    reader.onload = async (event) => {
+      const rawDataUrl = event.target?.result as string;
+      const compressed = await compressImage(rawDataUrl, 1000, 0.8);
+      setSelectedImage(compressed);
       setErrorMessage(null);
       if (!isPurePhoto) {
-        triggerAiExtraction(dataUrl);
+        triggerAiExtraction(compressed);
       }
     };
     reader.readAsDataURL(file);
@@ -170,21 +205,38 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'حدث خطأ أثناء معالجة الصورة بالذكاء الاصطناعي');
+      const responseBodyText = await response.text();
+      let result: any = {};
+      try {
+        result = JSON.parse(responseBodyText);
+      } catch {
+        result = { error: responseBodyText };
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        let msg = result.error || 'حدث خطأ أثناء معالجة الصورة بالذكاء الاصطناعي';
+        if (typeof msg === 'object') {
+          msg = JSON.stringify(msg);
+        }
+        if (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand') || msg.includes('overloaded')) {
+          msg = 'خدمة الذكاء الاصطناعي تشهد ضغطاً مؤقتاً في الطلبات، يرجى النقر على إعادة المحاولة أو تعبئة الحقول يدوياً.';
+        }
+        throw new Error(msg);
+      }
+
       if (result.success && result.data) {
         setExtractedPreview(result.data);
         setProcessStatus('تم استخراج البيانات بنجاح!');
       } else {
-        throw new Error('لم يتم العثور على بيانات واضحة بالوثيقة.');
+        throw new Error('لم يتم العثور على نصوص واضحة بالوثيقة، يمكنك ملء الحقول يدوياً.');
       }
     } catch (err: any) {
       console.error('AI Extraction error:', err);
-      setErrorMessage(err.message || 'تعذر استخراج البيانات. يمكنك إعادة التصوير أو ملء الحقول يدوياً.');
+      let cleanMsg = err?.message || 'تعذر استخراج البيانات. يمكنك إعادة التصوير أو ملء الحقول يدوياً.';
+      if (cleanMsg.includes('{"error"') || cleanMsg.includes('503') || cleanMsg.includes('UNAVAILABLE')) {
+        cleanMsg = 'خدمة الذكاء الاصطناعي تشهد ضغطاً مؤقتاً في الطلبات، يرجى المحاولة ثانية بعد قليل أو إدخال البيانات يدوياً.';
+      }
+      setErrorMessage(cleanMsg);
     } finally {
       setIsProcessing(false);
     }
@@ -392,9 +444,21 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
 
               {/* Error Message */}
               {errorMessage && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                  <span>{errorMessage}</span>
+                <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                    <span>{errorMessage}</span>
+                  </div>
+                  {selectedImage && !isProcessing && (
+                    <button
+                      type="button"
+                      onClick={() => triggerAiExtraction(selectedImage)}
+                      className="self-end sm:self-auto bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1 rounded-lg text-[11px] flex items-center gap-1 cursor-pointer transition"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      إعادة المحاولة
+                    </button>
+                  )}
                 </div>
               )}
 

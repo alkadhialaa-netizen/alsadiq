@@ -39,6 +39,65 @@ function parseBase64Image(dataUriOrBase64: string): { mimeType: string; base64Da
   return { mimeType: "image/jpeg", base64Data: dataUriOrBase64 };
 }
 
+/**
+ * Robust Gemini model invoker with exponential backoff retry and automatic fallback
+ * to handle temporary 503 (high demand) or service spikes seamlessly.
+ */
+async function generateContentWithFallback(ai: GoogleGenAI, requestConfig: any): Promise<any> {
+  const candidateModels = ["gemini-3.7-flash", "gemini-flash-latest"];
+  let lastError: any = null;
+
+  for (const model of candidateModels) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          ...requestConfig,
+          model,
+        });
+        return response;
+      } catch (err: any) {
+        lastError = err;
+        const errStr = String(err?.message || err || '');
+        const isSpikeOrUnavailable = 
+          errStr.includes('503') || 
+          errStr.includes('UNAVAILABLE') || 
+          errStr.includes('high demand') || 
+          errStr.includes('overloaded') ||
+          errStr.includes('429');
+        
+        console.warn(`[Gemini API] Request failed with model ${model} (attempt ${attempt}):`, err?.message || err);
+
+        if (isSpikeOrUnavailable && attempt < 2) {
+          // Wait 1.2 seconds before retrying same model
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+          continue;
+        }
+        // Move to the next fallback model
+        break;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * Format errors into human-readable Arabic messages for the UI
+ */
+function formatArabicErrorMessage(error: any, fallbackMessage: string): string {
+  const msg = String(error?.message || error || "");
+  if (msg.includes("503") || msg.includes("UNAVAILABLE") || msg.includes("high demand") || msg.includes("overloaded")) {
+    return "خدمة الذكاء الاصطناعي تشهد ضغطاً مؤقتاً في الطلبات، يرجى المحاولة مرة أخرى بعد لحظات أو تعبئة الحقول يدوياً.";
+  }
+  if (msg.includes("API_KEY") || msg.includes("apiKey") || msg.includes("403") || msg.includes("unauthorized")) {
+    return "مفتاح الربط بالذكاء الاصطناعي غير متوفر أو غير صالح، يمكنك إدخال البيانات يدوياً.";
+  }
+  if (msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED")) {
+    return "تم الوصول للحد المؤقت لطلبات الذكاء الاصطناعي، يرجى الانتظار قليلاً ثم المحاولة ثانية.";
+  }
+  return fallbackMessage;
+}
+
 // ============================================================================
 // 1. Extract Owner Data from ID Card / Passport
 // ============================================================================
@@ -62,8 +121,7 @@ app.post("/api/extract/owner-id", async (req: Request, res: Response) => {
 
 إذا لم يتوفر حقل معين في الوثيقة اتركه نصاً فارغاً "".`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+    const response = await generateContentWithFallback(ai, {
       contents: {
         parts: [
           {
@@ -101,7 +159,7 @@ app.post("/api/extract/owner-id", async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("Error in /api/extract/owner-id:", error);
     return res.status(500).json({
-      error: error?.message || "فشل استخراج بيانات بطاقة الهوية. يرجى المحاولة مرة أخرى أو الإدخال اليدوي.",
+      error: formatArabicErrorMessage(error, "فشل استخراج بيانات بطاقة الهوية. يرجى المحاولة مرة أخرى أو الإدخال اليدوي."),
     });
   }
 });
@@ -141,8 +199,7 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
 
 إذا لم يتوفر حقل، ضعه كقيمة افتراضية مناسبة أو اتركه فارغاً.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+    const response = await generateContentWithFallback(ai, {
       contents: {
         parts: [
           {
@@ -197,7 +254,7 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
   } catch (error: any) {
     console.error("Error in /api/extract/customs-declaration:", error);
     return res.status(500).json({
-      error: error?.message || "فشل استخراج بيانات البيان الجمركي. يرجى التحقق من وضوح الصورة والمحاولة مرة أخرى.",
+      error: formatArabicErrorMessage(error, "فشل استخراج بيانات البيان الجمركي. يرجى التحقق من وضوح الصورة والمحاولة مرة أخرى."),
     });
   }
 });
@@ -225,8 +282,7 @@ app.post("/api/extract/guarantor-id", async (req: Request, res: Response) => {
 
 يرجى ملاحظة أن رقم الهاتف قد لا يكون مدوناً على البطاقة، وفي هذه الحالة اتركه فارغاً ليقوم المستخدم بإدخاله يدوياً.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+    const response = await generateContentWithFallback(ai, {
       contents: {
         parts: [
           {
@@ -259,7 +315,7 @@ app.post("/api/extract/guarantor-id", async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("Error in /api/extract/guarantor-id:", error);
     return res.status(500).json({
-      error: error?.message || "فشل استخراج بيانات بطاقة المعرف. يرجى المحاولة ثانية.",
+      error: formatArabicErrorMessage(error, "فشل استخراج بيانات بطاقة المعرف. يرجى المحاولة ثانية."),
     });
   }
 });
@@ -284,8 +340,7 @@ app.post("/api/extract/plate-image", async (req: Request, res: Response) => {
 4. الدولة المكتوبة على اللوحة (plateCountry)
 5. صنف اللوحة: 'private' (خصوصي) أو 'taxi' (أجرة) أو 'commercial' (نقل/تجاري) أو 'government' (حكومي) أو 'temporary' (فحص مؤقت) أو 'diplomatic' (دبلوماسي)`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+    const response = await generateContentWithFallback(ai, {
       contents: {
         parts: [
           {
@@ -322,7 +377,7 @@ app.post("/api/extract/plate-image", async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("Error in /api/extract/plate-image:", error);
     return res.status(500).json({
-      error: error?.message || "فشل قراءة لوحة المركبة.",
+      error: formatArabicErrorMessage(error, "فشل قراءة لوحة المركبة. يرجى إعادة التقاط الصورة بوضوح أو إدخال الرقم يدوياً."),
     });
   }
 });
