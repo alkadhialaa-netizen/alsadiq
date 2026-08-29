@@ -189,16 +189,17 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
 5. رقم المحرك (engineNumber)
 6. لون المركبة الأساسي (color) والثانوي إن وجد (secondaryColor)
 7. نوع المركبة (vehicleType) أحد القيم: 'sedan', 'suv', 'pickup', 'van', 'bus', 'truck', 'motorcycle', 'trailer'
-8. نوع الوقود (fuelType) أحد القيم: 'petrol', 'diesel', 'hybrid', 'electric', 'gas'
-9. سعة المحرك (engineCapacity) مثل 2000 cc أو 2.5L
-10. عدد الأسطوانات (cylindersCount) كرقم (مثلاً 4 أو 6 أو 8)
-11. عدد الركاب / المقاعد (seatingCapacity) كرقم
-12. الحمولة بالكيلوغرام (loadCapacityKg) كرقم
-13. بلد المنشأ (originCountry) مثل: اليابان، كوريا الجنوبية، ألمانيا، أمريكا، الصين...
-14. رقم اللوحة إن وجد (plateNumber)
-15. حرف أو تصنيف اللوحة (plateLetter, plateCategory)
-16. اسم المالك المذكور بالبيان إن وجد (ownerFullName)
-17. الرقم الوطني للمالك إن وجد (ownerNationalId)
+8. شكل الهيكل التفصيلي (vehicleBodyShape) مثل: صالون (سيدان 4 أبواب)، جيب صالون مقفل، شاص غمارتين حوض، باص مقفل ركاب، حافلة كبيرة، شاحنة نقل بضائع، دراجة نارية عادية...
+9. نوع الوقود (fuelType) أحد القيم: 'petrol', 'diesel', 'hybrid', 'electric', 'gas'
+10. سعة المحرك (engineCapacity) مثل 2000 cc أو 2.5L
+11. عدد الأسطوانات (cylindersCount) كرقم (مثلاً 4 أو 6 أو 8)
+12. عدد الركاب / المقاعد (seatingCapacity) كرقم
+13. الحمولة بالكيلوغرام (loadCapacityKg) كرقم
+14. بلد المنشأ (originCountry) مثل: اليابان، كوريا الجنوبية، ألمانيا، أمريكا، الصين...
+15. رقم اللوحة إن وجد (plateNumber)
+16. حرف أو تصنيف اللوحة (plateLetter, plateCategory)
+17. اسم المالك المذكور بالبيان إن وجد (ownerFullName)
+18. الرقم الوطني للمالك إن وجد (ownerNationalId)
 
 إذا لم يتوفر حقل، ضعه كقيمة افتراضية مناسبة أو اتركه فارغاً.`;
 
@@ -229,7 +230,11 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
             vehicleType: {
               type: Type.STRING,
               enum: ["sedan", "suv", "pickup", "van", "bus", "truck", "motorcycle", "trailer"],
-              description: "نوع وشكل الهيكل",
+              description: "نوع المركبة الأساسي",
+            },
+            vehicleBodyShape: {
+              type: Type.STRING,
+              description: "شكل الهيكل التفصيلي بالعربية",
             },
             fuelType: {
               type: Type.STRING,

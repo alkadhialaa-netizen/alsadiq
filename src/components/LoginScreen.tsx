@@ -97,7 +97,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 <span>بوابة الدخول الرسمية والمصادقة الأمنية</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                نظام إصدار وتوثيق استمارات فحص وترقيم المركبات - شرطة السير بمحافظة تعز.
+                نظام إصدار وتوثيق استمارات فحص وترقيم المركبات - إدارة مرور محافظة تعز.
               </p>
               <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
                 <span className="flex items-center gap-1">

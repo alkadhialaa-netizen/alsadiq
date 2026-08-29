@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   Search,
   Eye,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ImagePlus
 } from 'lucide-react';
 import { VehicleRegistration, UserAccount } from './types';
 import { sampleRegistrations, defaultNewRegistration } from './data/mockTemplates';
@@ -111,7 +112,7 @@ export default function App() {
   };
 
   // Save current record to state & database safely
-  const handleSaveRecord = (customRecord?: VehicleRegistration) => {
+  const handleSaveRecord = (customRecord?: VehicleRegistration, navigateToPreview: boolean = true) => {
     const target = customRecord || currentRecord;
 
     const finalPlateNumber = target.plateNumber?.trim() || Math.floor(10000 + Math.random() * 90000).toString();
@@ -161,8 +162,12 @@ export default function App() {
       }
     }
 
-    showToast(`تم حفظ الاستمارة وترقيم المركبة بنجاح (${recordToSave.plateNumber} ${recordToSave.plateLetter})`);
-    setActiveView('preview');
+    if (navigateToPreview) {
+      showToast(`تم حفظ الاستمارة وترقيم المركبة بنجاح (${recordToSave.plateNumber} ${recordToSave.plateLetter})`);
+      setActiveView('preview');
+    } else {
+      showToast(`✓ تم حفظ البيانات بنجاح في السجل ومتابعة التعبئة والتعديل`);
+    }
   };
 
   const handleEditRecord = (record: VehicleRegistration) => {
@@ -443,6 +448,34 @@ export default function App() {
 
                 <button
                   type="button"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/png,image/jpeg,image/jpg,image/webp,image/svg+xml';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const result = event.target?.result as string;
+                        if (result) {
+                          localStorage.setItem('yemen_custom_header_emblem', result);
+                          window.dispatchEvent(new Event('yemen_custom_emblem_updated'));
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    };
+                    input.click();
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 text-xs font-bold transition cursor-pointer"
+                  title="رفع صورة مخصصة لشعار الترويسة من المعرض"
+                >
+                  <ImagePlus className="w-4 h-4 text-amber-600" />
+                  <span>شعار الترويسة (من المعرض)</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleEditRecord(currentRecord)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
                 >
@@ -492,13 +525,14 @@ export default function App() {
             <NewRegistrationPage
               currentData={currentRecord}
               onChange={setCurrentRecord}
-              onSaveAndPreview={handleSaveRecord}
-              onSaveAndPrint={() => {
-                handleSaveRecord();
+              onSaveAndPreview={(rec) => handleSaveRecord(rec, true)}
+              onSaveInPlace={(rec) => handleSaveRecord(rec, false)}
+              onSaveAndPrint={(rec) => {
+                handleSaveRecord(rec, true);
                 setTimeout(() => handlePrint(), 300);
               }}
-              onSaveAndExportPDF={() => {
-                handleSaveRecord();
+              onSaveAndExportPDF={(rec) => {
+                handleSaveRecord(rec, true);
                 setTimeout(() => handleExportPDF(), 300);
               }}
               onResetToNew={handleNewRecord}
@@ -513,7 +547,8 @@ export default function App() {
             <RegistrationInputForm
               currentData={currentRecord}
               onChange={setCurrentRecord}
-              onSave={handleSaveRecord}
+              onSave={(rec) => handleSaveRecord(rec, true)}
+              onSaveInPlace={(rec) => handleSaveRecord(rec, false)}
               onReset={handleResetForm}
               isEditing={isEditing}
             />

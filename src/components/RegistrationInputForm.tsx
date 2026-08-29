@@ -28,11 +28,13 @@ import { VehicleRegistration, PlateCategory, VehicleType, FuelType, GuarantorInf
 import { PlateVisualizer } from './PlateVisualizer';
 import { sampleRegistrations } from '../data/mockTemplates';
 import { AiCaptureModal, ScanType } from './AiCaptureModal';
+import { VEHICLE_BODY_OPTIONS, deduceVehicleAndBodyShape } from '../data/vehicleBodyOptions';
 
 interface RegistrationInputFormProps {
   currentData: VehicleRegistration;
   onChange: (updated: VehicleRegistration) => void;
   onSave: (record?: VehicleRegistration) => void;
+  onSaveInPlace?: (record?: VehicleRegistration) => void;
   onReset: () => void;
   isEditing?: boolean;
 }
@@ -41,6 +43,7 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
   currentData,
   onChange,
   onSave,
+  onSaveInPlace,
   onReset,
   isEditing = false,
 }) => {
@@ -110,6 +113,12 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
       });
       showToast('تم استخراج بيانات بطاقة المالك بنجاح وتعبئة الحقول تلقائياً!');
     } else if (currentScanType === 'customs') {
+      const deduced = deduceVehicleAndBodyShape(
+        `${extracted.make || ''} ${extracted.model || ''}`,
+        extracted.vehicleType,
+        extracted.vehicleBodyShape
+      );
+
       onChange({
         ...currentData,
         make: extracted.make || currentData.make,
@@ -119,7 +128,8 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
         engineNumber: extracted.engineNumber || currentData.engineNumber,
         color: extracted.color || currentData.color,
         secondaryColor: extracted.secondaryColor || currentData.secondaryColor,
-        vehicleType: (extracted.vehicleType as any) || currentData.vehicleType,
+        vehicleType: (extracted.vehicleType as any) || (deduced.vehicleType as any) || currentData.vehicleType,
+        vehicleBodyShape: extracted.vehicleBodyShape || deduced.bodyShape || currentData.vehicleBodyShape,
         fuelType: (extracted.fuelType as any) || currentData.fuelType,
         engineCapacity: extracted.engineCapacity || currentData.engineCapacity,
         cylindersCount: extracted.cylindersCount ? Number(extracted.cylindersCount) : currentData.cylindersCount,
@@ -131,7 +141,7 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
         notes: extracted.notes ? `${currentData.notes ? currentData.notes + ' | ' : ''}${extracted.notes}` : currentData.notes,
         updatedAt: new Date().toISOString(),
       });
-      showToast('تم استخراج المواصفات الفنية من البيان الجمركي وتعبئتها تلقائياً!');
+      showToast('تم استخراج المواصفات الفنية ونوع وشكل الهيكل تلقائياً من البيان الجمركي!');
     } else if (currentScanType === 'guarantor-1') {
       const g1 = currentData.guarantor1 || { fullName: '', nationalId: '', phone: '', address: '', relationship: '' };
       onChange({
@@ -223,7 +233,15 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
   ];
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-6">
+    <form 
+      onSubmit={(e) => e.preventDefault()} 
+      onKeyDown={(e) => { 
+        if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
+          e.preventDefault(); 
+        }
+      }}
+      className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-6"
+    >
       
       {/* Toast Notification */}
       {aiSuccessToast && (
@@ -922,25 +940,41 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
               />
             </div>
 
-            {/* Vehicle Body Type */}
+            {/* Vehicle Body Type & Shape - Manual Direct Input */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                نوع وشكل الهيكل
+                نوع المركبة (إدخال يدوي)
               </label>
-              <select
-                value={currentData.vehicleType}
-                onChange={(e) => updateField('vehicleType', e.target.value as VehicleType)}
-                className="w-full font-semibold text-sm px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option value="sedan">صالون (سيدان)</option>
-                <option value="suv">دفع رباعي (SUV / جيب)</option>
-                <option value="pickup">بيك أب (ونيت / نقل خفيف)</option>
-                <option value="van">فان / باص صغير</option>
-                <option value="bus">حافلة ركاب (باص كبير)</option>
-                <option value="truck">شاحنة / قاطرة</option>
-                <option value="motorcycle">دراجة نارية</option>
-                <option value="trailer">مقطورة</option>
-              </select>
+              <input
+                type="text"
+                value={
+                  currentData.vehicleType === 'van' ? 'باص' :
+                  currentData.vehicleType === 'sedan' ? 'صالون' :
+                  currentData.vehicleType === 'suv' ? 'جيب' :
+                  currentData.vehicleType === 'pickup' ? 'بيك أب' :
+                  currentData.vehicleType === 'bus' ? 'حافلة' :
+                  currentData.vehicleType === 'truck' ? 'شاحنة' :
+                  currentData.vehicleType === 'motorcycle' ? 'دراجة نارية' :
+                  currentData.vehicleType === 'trailer' ? 'مقطورة' :
+                  (currentData.vehicleType || '')
+                }
+                onChange={(e) => updateField('vehicleType', e.target.value)}
+                placeholder="مثال: باص، صالون، جيب، بيك أب، شاحنة..."
+                className="w-full font-bold text-sm px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                شكل الهيكل (إدخال يدوي)
+              </label>
+              <input
+                type="text"
+                value={currentData.vehicleBodyShape || ''}
+                onChange={(e) => updateField('vehicleBodyShape', e.target.value)}
+                placeholder="مثال: باص مقفل (ركاب / فان)، صالون 4 أبواب، شاص غمارتين..."
+                className="w-full font-bold text-sm px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
             </div>
 
             {/* Fuel Type */}
@@ -1760,14 +1794,26 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
           إعادة تعيين الحقول
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {onSaveInPlace && (
+            <button
+              type="button"
+              onClick={() => onSaveInPlace(currentData)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm shadow-sm transition cursor-pointer"
+              title="حفظ البيانات المسجلة مع البقاء في نفس صفحة التعديل"
+            >
+              <Check className="w-4 h-4 text-emerald-400" />
+              <span>حفظ ومتابعة الإدخال (دون الخروج)</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => onSave(currentData)}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md hover:shadow transition cursor-pointer"
           >
             <Save className="w-4 h-4" />
-            {isEditing ? 'تحديث وحفظ الاستمارة' : 'حفظ وتسجيل في الأرشيف'}
+            {isEditing ? 'تحديث والانتقال للمعاينة A4' : 'حفظ والانتقال للمعاينة والطباعة A4'}
           </button>
         </div>
       </div>
@@ -1781,6 +1827,6 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
         subtitle={modalSubtitle}
         onExtractionSuccess={handleAiExtractionSuccess}
       />
-    </div>
+    </form>
   );
 };

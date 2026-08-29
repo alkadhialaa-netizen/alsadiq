@@ -15,6 +15,7 @@ import {
   UserCircle
 } from 'lucide-react';
 import { UserAccount } from '../types';
+import { YemenNationalEmblem } from './YemenNationalEmblem';
 
 interface HeaderProps {
   activeView: 'preview' | 'new' | 'form' | 'registry';
@@ -103,8 +104,8 @@ export const Header: React.FC<HeaderProps> = ({
           
           {/* Brand & Title */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
-              <ShieldCheck className="w-6 h-6 text-white" />
+            <div className="w-12 h-10 flex items-center justify-center shrink-0">
+              <YemenNationalEmblem size="sm" className="w-12 h-9" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">

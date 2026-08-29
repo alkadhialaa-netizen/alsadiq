@@ -35,11 +35,14 @@ import {
 import { VehicleRegistration, PlateCategory, VehicleType, FuelType, GuarantorInfo, UserAccount } from '../types';
 import { PlateVisualizer } from './PlateVisualizer';
 import { AiCaptureModal, ScanType } from './AiCaptureModal';
+import { RegistrationFormA4 } from './RegistrationFormA4';
+import { VEHICLE_BODY_OPTIONS, deduceVehicleAndBodyShape } from '../data/vehicleBodyOptions';
 
 interface NewRegistrationPageProps {
   currentData: VehicleRegistration;
   onChange: (updated: VehicleRegistration) => void;
   onSaveAndPreview: (record?: VehicleRegistration) => void;
+  onSaveInPlace?: (record?: VehicleRegistration) => void;
   onSaveAndPrint?: (record?: VehicleRegistration) => void;
   onSaveAndExportPDF?: (record?: VehicleRegistration) => void;
   onResetToNew: () => void;
@@ -50,12 +53,15 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
   currentData,
   onChange,
   onSaveAndPreview,
+  onSaveInPlace,
   onSaveAndPrint,
   onSaveAndExportPDF,
   onResetToNew,
   currentUser,
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [displayMode, setDisplayMode] = useState<'stepped' | 'all'>('stepped');
+  const [sidePanelMode, setSidePanelMode] = useState<'summary' | 'live-a4'>('summary');
   
   // AI Scanner Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -128,6 +134,12 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
       });
       showToast('تم حفظ صورة المالك الشخصية (4×6) بنجاح');
     } else if (currentScanType === 'customs') {
+      const deduced = deduceVehicleAndBodyShape(
+        `${extracted.make || ''} ${extracted.model || ''}`,
+        extracted.vehicleType,
+        extracted.vehicleBodyShape
+      );
+
       onChange({
         ...currentData,
         customsDeclarationNumber: extracted.customsDeclarationNumber || currentData.customsDeclarationNumber,
@@ -135,13 +147,22 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
         engineNumber: extracted.engineNumber ? String(extracted.engineNumber).toUpperCase() : currentData.engineNumber,
         make: extracted.make || currentData.make,
         model: extracted.model || currentData.model,
-        year: extracted.year || currentData.year,
+        year: extracted.year ? Number(extracted.year) : currentData.year,
         color: extracted.color || currentData.color,
+        secondaryColor: extracted.secondaryColor || currentData.secondaryColor,
+        vehicleType: (extracted.vehicleType as any) || (deduced.vehicleType as any) || currentData.vehicleType,
+        vehicleBodyShape: extracted.vehicleBodyShape || deduced.bodyShape || currentData.vehicleBodyShape,
+        fuelType: (extracted.fuelType as any) || currentData.fuelType,
+        engineCapacity: extracted.engineCapacity || currentData.engineCapacity,
+        cylindersCount: extracted.cylindersCount ? Number(extracted.cylindersCount) : currentData.cylindersCount,
+        seatingCapacity: extracted.seatingCapacity ? Number(extracted.seatingCapacity) : currentData.seatingCapacity,
+        loadCapacityKg: extracted.loadCapacityKg ? Number(extracted.loadCapacityKg) : currentData.loadCapacityKg,
+        originCountry: extracted.originCountry || currentData.originCountry,
         customsIssuingOffice: extracted.customsIssuingOffice || currentData.customsIssuingOffice,
         vehicleCustomsPhoto: imageBase64 || currentData.vehicleCustomsPhoto,
         updatedAt: new Date().toISOString(),
       });
-      showToast('تم استخراج بيانات البيان الجمركي والمركبة بنجاح');
+      showToast('تم استخراج بيانات البيان الجمركي ونوع وشكل الهيكل بنجاح!');
     } else if (currentScanType === 'guarantor-1') {
       const g1 = currentData.guarantor1 || { fullName: '', nationalId: '', phone: '', address: '', relationship: '' };
       onChange({
@@ -245,10 +266,22 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
 
           {/* Quick Action Top Buttons */}
           <div className="flex flex-wrap items-center gap-2 self-end lg:self-center">
+            {onSaveInPlace && (
+              <button
+                type="button"
+                onClick={() => onSaveInPlace(currentData)}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800/95 hover:bg-slate-700 text-white font-bold text-xs sm:text-sm border border-slate-700 transition cursor-pointer shadow-md"
+                title="حفظ البيانات المسجلة مع البقاء في نفس صفحة التعبئة"
+              >
+                <Check className="w-4 h-4 text-emerald-400" />
+                <span>حفظ ومتابعة الإدخال</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onResetToNew}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-800/70 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition cursor-pointer"
               title="تفريغ الحقول وبدء معاملة جديدة"
             >
               <RotateCcw className="w-4 h-4 text-slate-400" />
@@ -261,63 +294,125 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-blue-600/30 transition cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>حفظ وعرض استمارة A4</span>
+              <span>حفظ وعرض استمارة A4 للطباعة</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Step Navigation Bar */}
-      <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-slate-200">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          {steps.map((step) => {
-            const isActive = currentStep === step.id;
-            const isCompleted = currentStep > step.id;
-            return (
+      {/* Mode Switcher & Section Bar */}
+      <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-slate-200 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-slate-700">طريقة عرض الحقول:</span>
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200">
               <button
-                key={step.id}
                 type="button"
-                onClick={() => setCurrentStep(step.id)}
-                className={`flex items-center gap-2.5 p-2.5 rounded-xl text-right transition cursor-pointer ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : isCompleted
-                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-                    : 'bg-slate-50 hover:bg-slate-100 text-slate-500'
+                onClick={() => setDisplayMode('stepped')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  displayMode === 'stepped'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
+                نظام الخطوات المنظمة (1 - 5)
+              </button>
+              <button
+                type="button"
+                onClick={() => setDisplayMode('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  displayMode === 'all'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                عرض جميع الحقول كاملة في صفحة واحدة
+              </button>
+            </div>
+          </div>
+
+          <div className="text-[11.5px] text-slate-500 font-medium">
+            {displayMode === 'stepped' ? (
+              <span>يتم حفظ جميع التعديلات تلقائياً، ويمكنك التنقل بحرية بين الخطوات</span>
+            ) : (
+              <span>جميع أقسام الاستمارة معروضة معاً لتسهيل المراجعة وتعبئة الحقول دفعة واحدة</span>
+            )}
+          </div>
+        </div>
+
+        {/* Step Navigation Bar */}
+        {displayMode === 'stepped' ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {steps.map((step) => {
+              const isActive = currentStep === step.id;
+              const isCompleted = currentStep > step.id;
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => setCurrentStep(step.id)}
+                  className={`flex items-center gap-2.5 p-2.5 rounded-xl text-right transition cursor-pointer ${
                     isActive
-                      ? 'bg-white text-blue-700'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                       : isCompleted
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-slate-200 text-slate-600'
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-500'
                   }`}
                 >
-                  {isCompleted ? <Check className="w-4 h-4" /> : step.id}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-extrabold truncate">{step.title}</p>
-                  <p className={`text-[10px] truncate ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>
-                    {step.desc}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
+                      isActive
+                        ? 'bg-white text-blue-700'
+                        : isCompleted
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {isCompleted ? <Check className="w-4 h-4" /> : step.id}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-extrabold truncate">{step.title}</p>
+                    <p className={`text-[10px] truncate ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>
+                      {step.desc}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-slate-400">انتقال سريع للقسم:</span>
+            {steps.map((step) => (
+              <a
+                key={step.id}
+                href={`#section-${step.id}`}
+                className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-700 font-bold text-slate-700 transition border border-slate-200"
+              >
+                {step.id}. {step.title}
+              </a>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main Multi-Step Form Content */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Left/Main Column: Form Step Inputs */}
-        <div className="lg:col-span-8 space-y-6">
+        <form 
+          onSubmit={(e) => e.preventDefault()} 
+          onKeyDown={(e) => { 
+            if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
+              e.preventDefault(); 
+            }
+          }}
+          className="lg:col-span-8 space-y-6"
+        >
 
           {/* ================= STEP 1: اللوحة ونوع الترقيم ================= */}
-          {currentStep === 1 && (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+          {(displayMode === 'all' || currentStep === 1) && (
+            <div id="section-1" className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -329,7 +424,7 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   </div>
                 </div>
                 <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
-                  خطوة 1 من 5
+                  القسم 1 من 5
                 </span>
               </div>
 
@@ -487,23 +582,37 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                 </div>
               </div>
 
-              {/* Next Step Button */}
-              <div className="pt-4 border-t border-slate-100 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(2)}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
-                >
-                  <span>التالي: بيانات مالك المركبة</span>
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
+              {/* Step 1 Actions */}
+              <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                {onSaveInPlace ? (
+                  <button
+                    type="button"
+                    onClick={() => onSaveInPlace(currentData)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition cursor-pointer text-xs"
+                    title="حفظ المدخلات والبقاء في نفس الصفحة"
+                  >
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span>حفظ ومتابعة الإدخال</span>
+                  </button>
+                ) : <div />}
+
+                {displayMode === 'stepped' && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(2)}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
+                  >
+                    <span>التالي: بيانات مالك المركبة</span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           )}
 
           {/* ================= STEP 2: بيانات المالك ================= */}
-          {currentStep === 2 && (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+          {(displayMode === 'all' || currentStep === 2) && (
+            <div id="section-2" className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -701,32 +810,50 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                 </div>
               </div>
 
-              {/* Navigation Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer text-xs"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                  <span>السابق: اللوحة والترقيم</span>
-                </button>
+              {/* Step 2 Actions */}
+              <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                {displayMode === 'stepped' ? (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(1)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer text-xs"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    <span>السابق: اللوحة والترقيم</span>
+                  </button>
+                ) : <div />}
 
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(3)}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
-                >
-                  <span>التالي: بيانات المركبة والجمارك (يدوي)</span>
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {onSaveInPlace && (
+                    <button
+                      type="button"
+                      onClick={() => onSaveInPlace(currentData)}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition cursor-pointer text-xs"
+                      title="حفظ المدخلات والبقاء في نفس الصفحة"
+                    >
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>حفظ ومتابعة الإدخال</span>
+                    </button>
+                  )}
+
+                  {displayMode === 'stepped' && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(3)}
+                      className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
+                    >
+                      <span>التالي: بيانات المركبة والجمارك</span>
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
           {/* ================= STEP 3: مواصفات المركبة والبيان الجمركي ================= */}
-          {currentStep === 3 && (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+          {(displayMode === 'all' || currentStep === 3) && (
+            <div id="section-3" className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -816,6 +943,45 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                     onChange={(e) => updateField('engineCapacity', e.target.value)}
                     placeholder="مثال: 2000 CC"
                     className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-medium font-mono focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Vehicle Body Type & Shape - Manual Direct Input */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    نوع المركبة (إدخال يدوي)
+                  </label>
+                  <input
+                    type="text"
+                    value={
+                      currentData.vehicleType === 'van' ? 'باص' :
+                      currentData.vehicleType === 'sedan' ? 'صالون' :
+                      currentData.vehicleType === 'suv' ? 'جيب' :
+                      currentData.vehicleType === 'pickup' ? 'بيك أب' :
+                      currentData.vehicleType === 'bus' ? 'حافلة' :
+                      currentData.vehicleType === 'truck' ? 'شاحنة' :
+                      currentData.vehicleType === 'motorcycle' ? 'دراجة نارية' :
+                      currentData.vehicleType === 'trailer' ? 'مقطورة' :
+                      (currentData.vehicleType || '')
+                    }
+                    onChange={(e) => updateField('vehicleType', e.target.value)}
+                    placeholder="مثال: باص، صالون، جيب، بيك أب، شاحنة..."
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    شكل الهيكل (إدخال يدوي)
+                  </label>
+                  <input
+                    type="text"
+                    value={currentData.vehicleBodyShape || ''}
+                    onChange={(e) => updateField('vehicleBodyShape', e.target.value)}
+                    placeholder="مثال: باص مقفل (ركاب / فان)، صالون 4 أبواب، شاص غمارتين..."
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -977,32 +1143,50 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                 )}
               </div>
 
-              {/* Navigation Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(2)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer text-xs"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                  <span>السابق: بيانات المالك</span>
-                </button>
+              {/* Step 3 Actions */}
+              <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                {displayMode === 'stepped' ? (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(2)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer text-xs"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    <span>السابق: بيانات المالك</span>
+                  </button>
+                ) : <div />}
 
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(4)}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
-                >
-                  <span>التالي: المعرفين والشهود</span>
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {onSaveInPlace && (
+                    <button
+                      type="button"
+                      onClick={() => onSaveInPlace(currentData)}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition cursor-pointer text-xs"
+                      title="حفظ المدخلات والبقاء في نفس الصفحة"
+                    >
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>حفظ ومتابعة الإدخال</span>
+                    </button>
+                  )}
+
+                  {displayMode === 'stepped' && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(4)}
+                      className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
+                    >
+                      <span>التالي: المعرفين والشهود</span>
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
           {/* ================= STEP 4: المعرفين والشهود ================= */}
-          {currentStep === 4 && (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+          {(displayMode === 'all' || currentStep === 4) && (
+            <div id="section-4" className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -1224,32 +1408,50 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                 </div>
               </div>
 
-              {/* Navigation Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(3)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer text-xs"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                  <span>السابق: المركبة والجمارك</span>
-                </button>
+              {/* Step 4 Actions */}
+              <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                {displayMode === 'stepped' ? (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(3)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer text-xs"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    <span>السابق: المركبة والجمارك</span>
+                  </button>
+                ) : <div />}
 
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(5)}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
-                >
-                  <span>التالي: الفحص والرسوم والاعتماد (يدوي)</span>
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {onSaveInPlace && (
+                    <button
+                      type="button"
+                      onClick={() => onSaveInPlace(currentData)}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition cursor-pointer text-xs"
+                      title="حفظ المدخلات والبقاء في نفس الصفحة"
+                    >
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>حفظ ومتابعة الإدخال</span>
+                    </button>
+                  )}
+
+                  {displayMode === 'stepped' && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(5)}
+                      className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
+                    >
+                      <span>التالي: الفحص والرسوم والاعتماد</span>
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
           {/* ================= STEP 5: الفحص والرسوم والاعتماد ================= */}
-          {currentStep === 5 && (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+          {(displayMode === 'all' || currentStep === 5) && (
+            <div id="section-5" className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -1257,11 +1459,11 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   </div>
                   <div>
                     <h3 className="text-base font-black text-slate-900">محضر الفحص الفني، الرسوم، والاعتماد النهائي</h3>
-                    <p className="text-xs text-slate-500">حالة المطابقة، سند التحصيل المالي، واعتماد رئيس اللجنة المقدم صادق القاضي</p>
+                    <p className="text-xs text-slate-500">حالة المطابقة، سند التحصيل المالي، واعتماد رئيس اللجنة ومختص الفحص</p>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
-                  الخطوة الأخيرة
+                  القسم 5 من 5
                 </span>
               </div>
 
@@ -1333,7 +1535,7 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
 
                   <div className="bg-blue-50/60 p-3.5 rounded-xl border border-blue-200">
                     <label className="block text-xs font-black text-blue-950 mb-1">
-                      مدير الإصدار الآلي (في الأخير):
+                      مدير الإصدار الآلي:
                     </label>
                     <input
                       type="text"
@@ -1362,16 +1564,30 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
 
               {/* Navigation & Final Submission Buttons */}
               <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(4)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer text-xs"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                  <span>السابق: المعرفين</span>
-                </button>
+                {displayMode === 'stepped' ? (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(4)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer text-xs"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    <span>السابق: المعرفين</span>
+                  </button>
+                ) : <div />}
 
                 <div className="flex flex-wrap items-center gap-2">
+                  {onSaveInPlace && (
+                    <button
+                      type="button"
+                      onClick={() => onSaveInPlace(currentData)}
+                      className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition cursor-pointer text-xs sm:text-sm"
+                      title="حفظ المدخلات والبقاء في نفس الصفحة"
+                    >
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>حفظ ومتابعة الإدخال (دون الخروج)</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => onSaveAndPreview(currentData)}
@@ -1385,85 +1601,172 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
             </div>
           )}
 
-        </div>
+          {/* All Mode Bottom Global Action Bar */}
+          {displayMode === 'all' && (
+            <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-lg border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-black text-white">اكتمال تعبئة الاستمارة</h4>
+                <p className="text-xs text-slate-400">يمكنك حفظ البيانات والبقاء هنا أو الانتقال لمعاينة وطباعة استمارة A4 الرسمية</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {onSaveInPlace && (
+                  <button
+                    type="button"
+                    onClick={() => onSaveInPlace(currentData)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition cursor-pointer text-xs sm:text-sm border border-slate-700"
+                  >
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span>حفظ ومتابعة الإدخال</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => onSaveAndPreview(currentData)}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md transition cursor-pointer text-sm"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>حفظ وعرض استمارة A4 للطباعة</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+        </form>
 
         {/* Right Column: Live Summary & Plate Preview Panel */}
         <div className="lg:col-span-4 space-y-4">
           
-          {/* Live Plate Visualizer Box */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-              <h4 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                <Hash className="w-4 h-4 text-blue-600" />
-                معاينة اللوحة المعتمدة:
-              </h4>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                {currentData.plateCategory === 'commercial' ? 'نقل عام' : 'خصوصي'}
-              </span>
-            </div>
-
-            <div className="flex justify-center py-2">
-              <PlateVisualizer
-                plateNumber={currentData.plateNumber || '00000'}
-                plateLetter={currentData.plateLetter || 'د'}
-                category={currentData.plateCategory}
-                prefix={currentData.platePrefix || '4'}
-                country={currentData.plateCountry || 'اليمن'}
-                size="md"
-              />
-            </div>
+          {/* Panel Mode Switcher */}
+          <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-slate-200 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setSidePanelMode('summary')}
+              className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                sidePanelMode === 'summary'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Hash className="w-3.5 h-3.5" />
+              <span>ملخص اللوحة والمعاملة</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSidePanelMode('live-a4')}
+              className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                sidePanelMode === 'live-a4'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>معاينة حية A4 📄</span>
+            </button>
           </div>
 
-          {/* Quick Summary Card */}
-          <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-sm border border-slate-800 space-y-3.5">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-              <span className="text-xs font-bold text-amber-300">ملخص المعاملة الحالية</span>
-              <span className="text-[10px] font-mono text-slate-400">{currentData.registrationNumber}</span>
-            </div>
+          {sidePanelMode === 'live-a4' ? (
+            <div className="bg-slate-900 rounded-2xl p-3.5 text-white border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between px-1 border-b border-slate-800 pb-2">
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  تتحدث فوراً مع كل حرف تكتبه
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onSaveAndPreview(currentData)}
+                  className="text-xs font-bold text-sky-300 hover:text-sky-200 underline cursor-pointer"
+                >
+                  فتح بالحجم الكامل
+                </button>
+              </div>
 
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">مالك المركبة:</span>
-                <span className="font-bold text-white truncate max-w-[170px]">{currentData.ownerFullName || 'لم يحدد بعد'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">الرقم الوطني:</span>
-                <span className="font-mono font-bold text-sky-300">{currentData.ownerNationalId || '---'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">نوع المركبة:</span>
-                <span className="font-bold text-slate-200">{currentData.make} {currentData.model} ({currentData.year})</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">رقم الشاصي VIN:</span>
-                <span className="font-mono text-[10.5px] text-amber-300 truncate max-w-[150px]">{currentData.vinNumber || '---'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">الرسوم المدفوعة:</span>
-                <span className="font-mono font-bold text-emerald-400">{currentData.totalFeesPaid?.toLocaleString() || 45000} ريال</span>
+              {/* Scaled A4 Preview Box */}
+              <div className="bg-slate-200 rounded-xl p-2 overflow-y-auto max-h-[620px] shadow-inner flex justify-center border border-slate-300">
+                <div className="origin-top scale-[0.40] sm:scale-[0.45] -my-44 -mx-36 pointer-events-none select-none">
+                  <RegistrationFormA4 data={currentData} />
+                </div>
               </div>
             </div>
+          ) : (
+            <>
+              {/* Live Plate Visualizer Box */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <h4 className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                    <Hash className="w-4 h-4 text-blue-600" />
+                    معاينة اللوحة المعتمدة:
+                  </h4>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                    {currentData.plateCategory === 'commercial' ? 'نقل عام' : 'خصوصي'}
+                  </span>
+                </div>
 
-            <div className="pt-3 border-t border-slate-800 space-y-2">
-              <button
-                type="button"
-                onClick={() => onSaveAndPreview(currentData)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md transition cursor-pointer"
-              >
-                <Eye className="w-4 h-4" />
-                <span>حفظ ومعاينة الاستمارة A4</span>
-              </button>
+                <div className="flex justify-center py-2">
+                  <PlateVisualizer
+                    plateNumber={currentData.plateNumber || '00000'}
+                    plateLetter={currentData.plateLetter || 'د'}
+                    category={currentData.plateCategory}
+                    prefix={currentData.platePrefix || '4'}
+                    country={currentData.plateCountry || 'اليمن'}
+                    size="md"
+                  />
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={onResetToNew}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition cursor-pointer"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>تفريغ وبدء ترقيم آخر</span>
-              </button>
-            </div>
-          </div>
+              {/* Quick Summary Card */}
+              <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-sm border border-slate-800 space-y-3.5">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                  <span className="text-xs font-bold text-amber-300">ملخص المعاملة الحالية</span>
+                  <span className="text-[10px] font-mono text-slate-400">{currentData.registrationNumber}</span>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">مالك المركبة:</span>
+                    <span className="font-bold text-white truncate max-w-[170px]">{currentData.ownerFullName || 'لم يحدد بعد'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">الرقم الوطني:</span>
+                    <span className="font-mono font-bold text-sky-300">{currentData.ownerNationalId || '---'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">نوع المركبة:</span>
+                    <span className="font-bold text-slate-200">{currentData.make} {currentData.model} ({currentData.year})</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">رقم الشاصي VIN:</span>
+                    <span className="font-mono text-[10.5px] text-amber-300 truncate max-w-[150px]">{currentData.vinNumber || '---'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">الرسوم المدفوعة:</span>
+                    <span className="font-mono font-bold text-emerald-400">{currentData.totalFeesPaid?.toLocaleString() || 45000} ريال</span>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-800 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => onSaveAndPreview(currentData)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md transition cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>حفظ ومعاينة الاستمارة A4</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onResetToNew}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>تفريغ وبدء ترقيم آخر</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
 
         </div>
 

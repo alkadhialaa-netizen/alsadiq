@@ -20,7 +20,7 @@ export const sampleRegistrations: VehicleRegistration[] = [
     make: 'هونداي',
     model: 'باص H1',
     vehicleModelTrim: '---',
-    vehicleBodyShape: '---',
+    vehicleBodyShape: 'باص مقفل (ركاب / فان)',
     year: 2015,
     color: 'ابيض',
     secondaryColor: '',

@@ -15,7 +15,8 @@ export type VehicleType =
   | 'bus'         // حافلة / باص كبير
   | 'truck'       // شاحنة / قاطرة
   | 'motorcycle'  // دراجة نارية
-  | 'trailer';    // مقطورة
+  | 'trailer'     // مقطورة
+  | string;
 
 export type FuelType = 
   | 'petrol'      // بنزين
