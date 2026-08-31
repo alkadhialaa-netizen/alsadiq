@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { VehicleRegistration } from '../types';
 import { YemenNationalEmblem } from './YemenNationalEmblem';
-import { ImagePlus, RotateCcw, Upload } from 'lucide-react';
+import { ImagePlus, RotateCcw } from 'lucide-react';
 
 export type FormTheme = 'classic' | 'navy' | 'emerald' | 'crimson';
 
@@ -993,34 +993,54 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
 
             <div className="flex items-end justify-between px-3 gap-3">
               
-              {/* 3 Spacious Official Signature Columns (Chairman -> Specialist -> Director at the end) */}
-              <div className="flex-1 grid grid-cols-3 gap-3 items-end text-center">
+              {/* 3 Spacious Official Signature Columns (Specialist -> Chairman -> Director) */}
+              <div className="flex-1 grid grid-cols-3 gap-2.5 items-end text-center">
                 
-                {/* 1. Technical Specialist (مختص الفحص الفني) */}
-                <div className="flex flex-col items-center">
-                  <div className="h-8 w-full flex items-end justify-center pb-0.5">
-                    <span className="text-[9px] text-slate-400 font-bold select-none">التوقيع: .....................</span>
+                {/* 1. Technical Specialist (المختص: ملازم / محمد بجاش الكمالي) */}
+                <div className="flex flex-col items-center bg-slate-50/60 rounded-lg p-1 border border-slate-200/70">
+                  <span className="text-[9.5px] font-bold text-slate-600 mb-0.5">المختص</span>
+                  <span 
+                    className="text-[10.5px] font-black tracking-tight whitespace-nowrap"
+                    style={{ color: themeColors.primaryDark }}
+                  >
+                    {data.officerName && !data.officerName.includes('صادق') && data.officerName !== 'المختص الفني'
+                      ? data.officerName 
+                      : 'ملازم / محمد بجاش الكمالي'}
+                  </span>
+                  <div className="h-5 w-full flex items-end justify-center pb-0.5 mt-0.5">
+                    <span className="text-[8px] text-slate-400 font-bold select-none">التوقيع: .....................</span>
                   </div>
-                  <div className="w-full max-w-[135px] border-b-[2px] border-slate-700 my-0.5" />
-                  <span className="text-[10.5px] font-black text-slate-950 whitespace-nowrap">مختص الفحص الفني</span>
+                  <div className="w-full max-w-[130px] border-b-[1.5px] border-slate-700 my-0.5" />
                 </div>
 
-                {/* 2. Chairman of Customs Numbering Committee (رئيس لجنة ترقيم الجمارك) */}
-                <div className="flex flex-col items-center">
-                  <div className="h-8 w-full flex items-end justify-center pb-0.5">
-                    <span className="text-[9px] text-slate-400 font-bold select-none">التوقيع: .....................</span>
+                {/* 2. Committee Chairman (رئيس اللجنة: المقدم / صادق القاضي) */}
+                <div className="flex flex-col items-center bg-slate-50/60 rounded-lg p-1 border border-slate-200/70">
+                  <span className="text-[9.5px] font-bold text-slate-600 mb-0.5">رئيس اللجنة</span>
+                  <span 
+                    className="text-[10.5px] font-black tracking-tight whitespace-nowrap"
+                    style={{ color: themeColors.primaryDark }}
+                  >
+                    المقدم / صادق القاضي
+                  </span>
+                  <div className="h-5 w-full flex items-end justify-center pb-0.5 mt-0.5">
+                    <span className="text-[8px] text-slate-400 font-bold select-none">التوقيع: .....................</span>
                   </div>
-                  <div className="w-full max-w-[135px] border-b-[2px] border-slate-700 my-0.5" />
-                  <span className="text-[10.5px] font-black text-slate-950 whitespace-nowrap">رئيس لجنة ترقيم الجمارك</span>
+                  <div className="w-full max-w-[130px] border-b-[1.5px] border-slate-700 my-0.5" />
                 </div>
 
-                {/* 3. Director of Automated Issuance (مدير الإصدار الآلي - في الأخير) */}
-                <div className="flex flex-col items-center">
-                  <div className="h-8 w-full flex items-end justify-center pb-0.5">
-                    <span className="text-[9px] text-slate-400 font-bold select-none">التوقيع: .....................</span>
+                {/* 3. Director of Automated Issuance (مدير الإصدار: العقيد / ماجد الحكيم) */}
+                <div className="flex flex-col items-center bg-slate-50/60 rounded-lg p-1 border border-slate-200/70">
+                  <span className="text-[9.5px] font-bold text-slate-600 mb-0.5">مدير الإصدار</span>
+                  <span 
+                    className="text-[10.5px] font-black tracking-tight whitespace-nowrap"
+                    style={{ color: themeColors.primaryDark }}
+                  >
+                    {data.automatedIssuanceDirector || 'العقيد / ماجد الحكيم'}
+                  </span>
+                  <div className="h-5 w-full flex items-end justify-center pb-0.5 mt-0.5">
+                    <span className="text-[8px] text-slate-400 font-bold select-none">التوقيع: .....................</span>
                   </div>
-                  <div className="w-full max-w-[135px] border-b-[2px] border-slate-700 my-0.5" />
-                  <span className="text-[10.5px] font-black text-slate-950 whitespace-nowrap">مدير الإصدار الآلي</span>
+                  <div className="w-full max-w-[130px] border-b-[1.5px] border-slate-700 my-0.5" />
                 </div>
 
               </div>
