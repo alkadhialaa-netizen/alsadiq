@@ -28,7 +28,9 @@ import { VehicleRegistration, PlateCategory, VehicleType, FuelType, GuarantorInf
 import { PlateVisualizer } from './PlateVisualizer';
 import { sampleRegistrations } from '../data/mockTemplates';
 import { AiCaptureModal, ScanType } from './AiCaptureModal';
+import { PlatePhotoEditor } from './PlatePhotoEditor';
 import { VEHICLE_BODY_OPTIONS, deduceVehicleAndBodyShape } from '../data/vehicleBodyOptions';
+import { POPULAR_YEMEN_VEHICLES, PopularVehicle } from '../data/popularYemenVehicles';
 
 interface RegistrationInputFormProps {
   currentData: VehicleRegistration;
@@ -69,6 +71,22 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
       [field]: value,
       updatedAt: new Date().toISOString(),
     });
+  };
+
+  const handleSelectPopularVehicle = (veh: PopularVehicle) => {
+    onChange({
+      ...currentData,
+      model: veh.model,
+      make: veh.make,
+      vehicleType: veh.vehicleType,
+      vehicleBodyShape: veh.vehicleBodyShape,
+      vehicleModelTrim: veh.defaultTrim || currentData.vehicleModelTrim,
+      engineCapacity: veh.engineCapacity || currentData.engineCapacity,
+      cylindersCount: veh.cylindersCount || currentData.cylindersCount,
+      fuelType: veh.fuelType || currentData.fuelType,
+      updatedAt: new Date().toISOString(),
+    });
+    showToast(`تم تحديد نوع المركبة: ${veh.name} (${veh.make})`);
   };
 
   const updateGuarantor = (guarantorKey: 'guarantor1' | 'guarantor2', field: keyof GuarantorInfo, value: string) => {
@@ -113,26 +131,39 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
       });
       showToast('تم استخراج بيانات بطاقة المالك بنجاح وتعبئة الحقول تلقائياً!');
     } else if (currentScanType === 'customs') {
+      const modelCandidate = (extracted.model || '').trim();
+      const matchedPopular = POPULAR_YEMEN_VEHICLES.find(
+        p => modelCandidate && (
+          modelCandidate.includes(p.name) ||
+          p.name.includes(modelCandidate) ||
+          (p.nameEn && modelCandidate.toLowerCase().includes(p.nameEn.toLowerCase()))
+        )
+      );
+
       const deduced = deduceVehicleAndBodyShape(
-        `${extracted.make || ''} ${extracted.model || ''}`,
-        extracted.vehicleType,
-        extracted.vehicleBodyShape
+        `${extracted.make || (matchedPopular ? matchedPopular.make : '')} ${modelCandidate}`,
+        extracted.vehicleType || (matchedPopular ? matchedPopular.vehicleType : undefined),
+        extracted.vehicleBodyShape || (matchedPopular ? matchedPopular.vehicleBodyShape : undefined)
       );
 
       onChange({
         ...currentData,
-        make: extracted.make || currentData.make,
-        model: extracted.model || currentData.model,
+        customsDeclarationNumber: extracted.customsDeclarationNumber || currentData.customsDeclarationNumber,
+        customsDeclarationDate: extracted.customsDeclarationDate || currentData.customsDeclarationDate,
+        customsIssuingOffice: extracted.customsIssuingOffice || currentData.customsIssuingOffice,
+        make: extracted.make || (matchedPopular ? matchedPopular.make : currentData.make),
+        model: matchedPopular ? matchedPopular.name : (extracted.model || currentData.model),
+        vehicleModelTrim: extracted.vehicleModelTrim || (matchedPopular ? matchedPopular.defaultTrim : currentData.vehicleModelTrim),
         year: extracted.year ? Number(extracted.year) : currentData.year,
         vinNumber: extracted.vinNumber ? String(extracted.vinNumber).toUpperCase() : currentData.vinNumber,
         engineNumber: extracted.engineNumber || currentData.engineNumber,
         color: extracted.color || currentData.color,
         secondaryColor: extracted.secondaryColor || currentData.secondaryColor,
-        vehicleType: (extracted.vehicleType as any) || (deduced.vehicleType as any) || currentData.vehicleType,
-        vehicleBodyShape: extracted.vehicleBodyShape || deduced.bodyShape || currentData.vehicleBodyShape,
-        fuelType: (extracted.fuelType as any) || currentData.fuelType,
-        engineCapacity: extracted.engineCapacity || currentData.engineCapacity,
-        cylindersCount: extracted.cylindersCount ? Number(extracted.cylindersCount) : currentData.cylindersCount,
+        vehicleType: (extracted.vehicleType as any) || (matchedPopular ? (matchedPopular.name as any) : (deduced.vehicleType as any)) || currentData.vehicleType,
+        vehicleBodyShape: extracted.vehicleBodyShape || (matchedPopular ? matchedPopular.vehicleBodyShape : deduced.bodyShape) || currentData.vehicleBodyShape,
+        fuelType: (extracted.fuelType as any) || (matchedPopular ? matchedPopular.fuelType : currentData.fuelType),
+        engineCapacity: extracted.engineCapacity || (matchedPopular?.engineCapacity) || currentData.engineCapacity,
+        cylindersCount: extracted.cylindersCount ? Number(extracted.cylindersCount) : (matchedPopular?.cylindersCount ?? currentData.cylindersCount),
         seatingCapacity: extracted.seatingCapacity ? Number(extracted.seatingCapacity) : currentData.seatingCapacity,
         loadCapacityKg: extracted.loadCapacityKg ? Number(extracted.loadCapacityKg) : currentData.loadCapacityKg,
         originCountry: extracted.originCountry || currentData.originCountry,
@@ -141,7 +172,7 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
         notes: extracted.notes ? `${currentData.notes ? currentData.notes + ' | ' : ''}${extracted.notes}` : currentData.notes,
         updatedAt: new Date().toISOString(),
       });
-      showToast('تم استخراج المواصفات الفنية ونوع وشكل الهيكل تلقائياً من البيان الجمركي!');
+      showToast('تم استخراج رقم وتاريخ البيان الجمركي، والموديل، والمواصفات الفنية بنجاح!');
     } else if (currentScanType === 'guarantor-1') {
       const g1 = currentData.guarantor1 || { fullName: '', nationalId: '', phone: '', address: '', relationship: '' };
       onChange({
@@ -781,75 +812,62 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
               )}
             </div>
 
-            {/* Box 2: Vehicle Plate Photo (Requested by User) */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Camera className="w-4 h-4 text-indigo-600" />
-                  <span className="text-xs font-black text-slate-800">صورة لوحة المركبة (مرفق اللوحة الموسع)</span>
-                </div>
-                {currentData.vehiclePlatePhoto && (
-                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
-                    مرفق ✓
-                  </span>
-                )}
-              </div>
+            {/* Box 2: Vehicle Plate Photo with Rotation & Expansion */}
+            <PlatePhotoEditor
+              data={currentData}
+              onChange={onChange}
+              onOpenCameraModal={() =>
+                openScanner('plate-photo', 'تصوير أو اختيار لوحة المركبة', 'التقط أو اختر صورة للوحة المركبة لتدويرها وتوسيعها')
+              }
+              onNotify={showToast}
+            />
 
-              {currentData.vehiclePlatePhoto ? (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <img 
-                      src={currentData.vehiclePlatePhoto} 
-                      alt="Vehicle Plate Photo" 
-                      className="w-24 h-16 sm:w-32 sm:h-20 object-contain rounded-lg border border-slate-300 shadow-xs bg-slate-50"
-                    />
-                    <div>
-                      <span className="text-xs font-bold text-slate-800 block">صورة لوحة الرقم المرفقة</span>
-                      <span className="text-[10.5px] text-slate-500 block mt-0.5">معروضة بحجم موسع ومطابق للاستمارة الرسمية</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 self-end sm:self-center">
-                    <button
-                      type="button"
-                      onClick={() => openScanner('plate-photo', 'استبدال صورة لوحة المركبة', 'التقط أو اختر صورة جديدة للوحة')}
-                      className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition cursor-pointer"
-                    >
-                      استبدال
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateField('vehiclePlatePhoto', undefined)}
-                      className="text-xs font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition cursor-pointer"
-                    >
-                      حذف
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 border-2 border-dashed border-indigo-200 rounded-xl bg-white text-center space-y-2">
-                  <p className="text-xs text-slate-500">يمكنك التقاط أو اختيار صورة لوحة المركبة لتظهر بالحجم المكبر في الاستمارة</p>
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openScanner('plate-photo', 'تصوير لوحة المركبة بالكاميرا', 'التقط صورة واضحة للوحة المركبة')}
-                      className="flex items-center gap-1.5 text-xs px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-xs transition cursor-pointer"
-                    >
-                      <Camera className="w-3.5 h-3.5" />
-                      تصوير اللوحة
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openScanner('plate-photo', 'اختيار صورة اللوحة من المعرض', 'اختر صورة لوحة المركبة من جهازك')}
-                      className="flex items-center gap-1.5 text-xs px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      اختيار صورة اللوحة
-                    </button>
-                  </div>
-                </div>
-              )}
+          </div>
+
+          {/* Quick Vehicle Model Presets for Yemen (توسان، برادو، تريوس، شاص، هيلوكس، إلخ) */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50/70 p-4 rounded-2xl border border-blue-200/80 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-blue-950 flex items-center gap-1.5">
+                  <Car className="w-4 h-4 text-blue-600" />
+                  نوع المركبة في اليمن (اختيار سريع بنقرة واحدة):
+                </span>
+                <span className="text-[10px] bg-blue-100 text-blue-800 font-black px-2.5 py-0.5 rounded-full">
+                  توسان • برادو • تريوس • شاص • هيلوكس • باص H1
+                </span>
+              </div>
+              <span className="text-xs text-slate-600 font-bold">
+                النوع الحالي: <strong className="text-blue-700 font-black text-sm">{currentData.model || currentData.vehicleType || 'غير محدد'}</strong>
+              </span>
             </div>
 
+            <div className="flex flex-wrap gap-2">
+              {POPULAR_YEMEN_VEHICLES.map((v) => {
+                const isSelected = 
+                  currentData.model?.trim() === v.model || 
+                  currentData.model?.trim() === v.name ||
+                  (currentData.vehicleType === v.vehicleType && currentData.model?.includes(v.name));
+                return (
+                  <button
+                    key={v.name}
+                    type="button"
+                    onClick={() => handleSelectPopularVehicle(v)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-xs transition cursor-pointer shadow-2xs ${
+                      isSelected
+                        ? 'bg-blue-600 text-white ring-2 ring-blue-600 ring-offset-1 shadow-sm scale-[1.02]'
+                        : 'bg-white hover:bg-blue-50 text-slate-800 border border-slate-200 hover:border-blue-300'
+                    }`}
+                    title={v.description}
+                  >
+                    <span className="text-sm">{v.icon}</span>
+                    <span>{v.name}</span>
+                    <span className={`text-[10px] font-bold ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
+                      ({v.nameEn})
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Vehicle Specs Grid */}
@@ -863,23 +881,39 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
                 type="text"
                 value={currentData.make}
                 onChange={(e) => updateField('make', e.target.value)}
-                placeholder="تويوتا، هيونداي، مرسيدس..."
-                className="w-full font-semibold text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="تويوتا، هيونداي، دايهاتسو..."
+                className="w-full font-semibold text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-            {/* Model */}
+            {/* Model / Commercial Name */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                الموديل / الطراز <span className="text-rose-500">*</span>
+                نوع المركبة / الموديل التجاري <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
+                list="yemen-vehicle-models-list-input"
                 value={currentData.model}
-                onChange={(e) => updateField('model', e.target.value)}
-                placeholder="كامري، لاندكروزر، النترا..."
-                className="w-full font-semibold text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const matched = POPULAR_YEMEN_VEHICLES.find(
+                    p => p.name === val.trim() || p.model === val.trim() || p.nameEn.toLowerCase() === val.trim().toLowerCase()
+                  );
+                  if (matched) {
+                    handleSelectPopularVehicle(matched);
+                  } else {
+                    updateField('model', val);
+                  }
+                }}
+                placeholder="مثال: توسان، برادو، تريوس، شاص، هيلوكس..."
+                className="w-full font-black text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
               />
+              <datalist id="yemen-vehicle-models-list-input">
+                {POPULAR_YEMEN_VEHICLES.map(v => (
+                  <option key={v.name} value={v.name}>{`${v.name} (${v.make})`}</option>
+                ))}
+              </datalist>
             </div>
 
             {/* Year */}
@@ -943,10 +977,11 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
             {/* Vehicle Body Type & Shape - Manual Direct Input */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                نوع المركبة (إدخال يدوي)
+                نوع المركبة (صنف الترخيص)
               </label>
               <input
                 type="text"
+                list="yemen-vehicle-types-list-input"
                 value={
                   currentData.vehicleType === 'van' ? 'باص' :
                   currentData.vehicleType === 'sedan' ? 'صالون' :
@@ -958,22 +993,46 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
                   currentData.vehicleType === 'trailer' ? 'مقطورة' :
                   (currentData.vehicleType || '')
                 }
-                onChange={(e) => updateField('vehicleType', e.target.value)}
-                placeholder="مثال: باص، صالون، جيب، بيك أب، شاحنة..."
-                className="w-full font-bold text-sm px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const matched = POPULAR_YEMEN_VEHICLES.find(
+                    p => p.name === val.trim() || p.model === val.trim()
+                  );
+                  if (matched) {
+                    handleSelectPopularVehicle(matched);
+                  } else {
+                    updateField('vehicleType', val);
+                  }
+                }}
+                placeholder="مثال: توسان، برادو، تريوس، شاص، هيلوكس، باص..."
+                className="w-full font-bold text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               />
+              <datalist id="yemen-vehicle-types-list-input">
+                <option value="توسان">توسان (هيونداي)</option>
+                <option value="برادو">برادو (تويوتا)</option>
+                <option value="تريوس">تريوس (دايهاتسو)</option>
+                <option value="شاص">شاص (تويوتا)</option>
+                <option value="هيلوكس">هيلوكس (تويوتا)</option>
+                <option value="باص H1">باص H1 (هيونداي)</option>
+                <option value="سنتافي">سنتافي (هيونداي)</option>
+                <option value="لاند كروزر">لاند كروزر (تويوتا)</option>
+                <option value="صالون">صالون (سيدان)</option>
+                <option value="جيب">جيب (دفع رباعي)</option>
+                <option value="بيك أب">بيك أب (شاص/حوض)</option>
+                <option value="باص">باص (ركاب/فان)</option>
+              </datalist>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                شكل الهيكل (إدخال يدوي)
+                شكل الهيكل المعتمد
               </label>
               <input
                 type="text"
                 value={currentData.vehicleBodyShape || ''}
                 onChange={(e) => updateField('vehicleBodyShape', e.target.value)}
                 placeholder="مثال: باص مقفل (ركاب / فان)، صالون 4 أبواب، شاص غمارتين..."
-                className="w-full font-bold text-sm px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full font-bold text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               />
             </div>
 
@@ -1107,13 +1166,26 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
             {/* Customs Declaration Details */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                رقم البيان الجمركي
+                رقم البيان الجمركي (مستخرج من الوثيقة)
               </label>
               <input
                 type="text"
                 value={currentData.customsDeclarationNumber || ''}
                 onChange={(e) => updateField('customsDeclarationNumber', e.target.value)}
-                placeholder="مثال: 07-2024-88421"
+                placeholder="مثال: C2006 أو 07-2024-88421"
+                className="w-full font-mono font-bold text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                تاريخ البيان الجمركي
+              </label>
+              <input
+                type="text"
+                value={currentData.customsDeclarationDate || ''}
+                onChange={(e) => updateField('customsDeclarationDate', e.target.value)}
+                placeholder="مثال: 2024/05/12 أو 1445/11/04"
                 className="w-full font-mono font-bold text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1126,7 +1198,7 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
                 type="text"
                 value={currentData.customsIssuingOffice || ''}
                 onChange={(e) => updateField('customsIssuingOffice', e.target.value)}
-                placeholder="مثال: جمرك ميناء عدن / جمرك شحن"
+                placeholder="مثال: جمرك ميناء عدن / جمرك تعز"
                 className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1650,6 +1722,16 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
               />
             </div>
           </div>
+
+          {/* Interactive Car Plate Photo Picker, Rotation & Expansion */}
+          <PlatePhotoEditor
+            data={currentData}
+            onChange={onChange}
+            onOpenCameraModal={() =>
+              openScanner('plate-photo', 'تصوير أو اختيار لوحة المركبة', 'التقط أو اختر صورة للوحة المركبة لتدويرها وتوسيعها')
+            }
+            onNotify={showToast}
+          />
         </div>
       )}
 
@@ -1747,7 +1829,7 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
                 type="text"
                 value={currentData.officerName}
                 onChange={(e) => updateField('officerName', e.target.value)}
-                placeholder="الملازم / محمد بجاش الكمالي"
+                placeholder="المختص"
                 className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1761,7 +1843,7 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
                 type="text"
                 value={currentData.automatedIssuanceDirector || ''}
                 onChange={(e) => updateField('automatedIssuanceDirector', e.target.value)}
-                placeholder="العقيد / ماجد الحكيم"
+                placeholder="مدير الإصدار"
                 className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>

@@ -27,6 +27,7 @@ import { VehicleRegistryTable } from './components/VehicleRegistryTable';
 import { Header } from './components/Header';
 import { LoginScreen } from './components/LoginScreen';
 import { UserManagementModal } from './components/UserManagementModal';
+import { PlatePhotoEditor } from './components/PlatePhotoEditor';
 import { getCurrentSession, logoutUser } from './utils/authService';
 import { exportToA4PDF, exportToImage, printDocument } from './utils/pdfExport';
 
@@ -62,6 +63,14 @@ export default function App() {
   const [exportStep, setExportStep] = useState<string>('');
   const [exportTargetRecord, setExportTargetRecord] = useState<VehicleRegistration | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showPlatePhotoStudio, setShowPlatePhotoStudio] = useState<boolean>(false);
+  const [formColorTheme, setFormColorTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      return localStorage.getItem('yemen_form_color_theme_v1') === 'light' ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -461,6 +470,7 @@ export default function App() {
                         if (result) {
                           localStorage.setItem('yemen_custom_header_emblem', result);
                           window.dispatchEvent(new Event('yemen_custom_emblem_updated'));
+                          showToast('تم تحديث صورة الطائر الجمهوري في الترويسة');
                         }
                       };
                       reader.readAsDataURL(file);
@@ -468,10 +478,181 @@ export default function App() {
                     input.click();
                   }}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 text-xs font-bold transition cursor-pointer"
-                  title="رفع صورة مخصصة لشعار الترويسة من المعرض"
+                  title="رفع صورة مخصصة للطائر الجمهوري في الترويسة من المعرض"
                 >
                   <ImagePlus className="w-4 h-4 text-amber-600" />
-                  <span>شعار الترويسة (من المعرض)</span>
+                  <span>الطائر الجمهوري</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/png,image/jpeg,image/jpg,image/webp,image/svg+xml';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const result = event.target?.result as string;
+                        if (result) {
+                          localStorage.setItem('yemen_custom_moi_emblem', result);
+                          window.dispatchEvent(new Event('yemen_custom_moi_emblem_updated'));
+                          showToast('تم تحديث صورة شعار وزارة الداخلية في الترويسة');
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    };
+                    input.click();
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300/80 text-xs font-bold transition cursor-pointer"
+                  title="رفع صورة شعار وزارة الداخلية من المعرض"
+                >
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>شعار وزارة الداخلية</span>
+                </button>
+
+                <div className="flex items-center gap-1 bg-rose-50 border border-rose-300/80 rounded-xl px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/png,image/jpeg,image/jpg,image/webp,image/svg+xml';
+                      input.onchange = (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          const result = event.target?.result as string;
+                          if (result) {
+                            localStorage.setItem('yemen_custom_traffic_emblem', result);
+                            window.dispatchEvent(new Event('yemen_custom_traffic_emblem_updated'));
+                            showToast('تم تحديث شعار إدارة المرور في الترويسة والعلامة المائية');
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      };
+                      input.click();
+                    }}
+                    className="flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-rose-100 text-rose-900 text-xs font-bold transition cursor-pointer"
+                    title="رفع صورة شعار الإدارة العامة للمرور من المعرض للترويسة والعلامة المائية"
+                  >
+                    <ImagePlus className="w-3.5 h-3.5 text-rose-600" />
+                    <span>شعار المرور</span>
+                  </button>
+                  <span className="text-rose-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = Number(localStorage.getItem('yemen_watermark_size_v4_px')) || 210;
+                      const next = Math.max(80, current - 25);
+                      localStorage.setItem('yemen_watermark_size_v4_px', String(next));
+                      window.dispatchEvent(new Event('yemen_watermark_size_updated'));
+                    }}
+                    className="px-1.5 py-0.5 rounded bg-white hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-black cursor-pointer transition"
+                    title="تصغير العلامة المائية"
+                  >
+                    تصغير -
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = Number(localStorage.getItem('yemen_watermark_size_v4_px')) || 210;
+                      const next = Math.min(600, current + 25);
+                      localStorage.setItem('yemen_watermark_size_v4_px', String(next));
+                      window.dispatchEvent(new Event('yemen_watermark_size_updated'));
+                    }}
+                    className="px-1.5 py-0.5 rounded bg-white hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-black cursor-pointer transition"
+                    title="توسيع وتكبير العلامة المائية"
+                  >
+                    توسيع +
+                  </button>
+                  <span className="text-rose-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = Number(localStorage.getItem('yemen_watermark_opacity_v1')) || 0.13;
+                      const next = Math.max(0.04, Number((current - 0.03).toFixed(2)));
+                      localStorage.setItem('yemen_watermark_opacity_v1', String(next));
+                      window.dispatchEvent(new Event('yemen_watermark_opacity_updated'));
+                    }}
+                    className="px-1.5 py-0.5 rounded bg-white hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-black cursor-pointer transition"
+                    title="تقليل وتخفيف شفافية العلامة المائية"
+                  >
+                    شفافية -
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = Number(localStorage.getItem('yemen_watermark_opacity_v1')) || 0.13;
+                      const next = Math.min(0.6, Number((current + 0.03).toFixed(2)));
+                      localStorage.setItem('yemen_watermark_opacity_v1', String(next));
+                      window.dispatchEvent(new Event('yemen_watermark_opacity_updated'));
+                    }}
+                    className="px-1.5 py-0.5 rounded bg-white hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-black cursor-pointer transition"
+                    title="زيادة وضوح العلامة المائية"
+                  >
+                    شفافية +
+                  </button>
+                  <span className="text-rose-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = Number(localStorage.getItem('yemen_form_font_scale_v1')) || 1.0;
+                      const next = Math.max(0.85, Number((current - 0.05).toFixed(2)));
+                      localStorage.setItem('yemen_form_font_scale_v1', String(next));
+                      window.dispatchEvent(new Event('yemen_form_font_scale_updated'));
+                    }}
+                    className="px-1.5 py-0.5 rounded bg-white hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-black cursor-pointer transition"
+                    title="تصغير حجم الخط قليلاً"
+                  >
+                    خط -
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = Number(localStorage.getItem('yemen_form_font_scale_v1')) || 1.0;
+                      const next = Math.min(1.25, Number((current + 0.05).toFixed(2)));
+                      localStorage.setItem('yemen_form_font_scale_v1', String(next));
+                      window.dispatchEvent(new Event('yemen_form_font_scale_updated'));
+                    }}
+                    className="px-1.5 py-0.5 rounded bg-white hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-black cursor-pointer transition"
+                    title="تكبير حجم الخط قليلاً"
+                  >
+                    خط +
+                  </button>
+                  <span className="text-rose-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = formColorTheme === 'dark' ? 'light' : 'dark';
+                      setFormColorTheme(next);
+                      localStorage.setItem('yemen_form_color_theme_v1', next);
+                      window.dispatchEvent(new Event('yemen_form_color_theme_updated'));
+                      showToast(next === 'dark' ? 'تم تفعيل نمط اللون الغامق الرسمي' : 'تم تفعيل نمط اللون الفاتح');
+                    }}
+                    className="px-2 py-0.5 rounded bg-rose-900 text-white hover:bg-rose-950 text-[11px] font-black cursor-pointer transition flex items-center gap-1 shadow-2xs"
+                    title="التبديل بين درجات لون الاستمارة (غامق رسمي / فاتح)"
+                  >
+                    <span>اللون:</span>
+                    <span className="font-extrabold underline">{formColorTheme === 'dark' ? 'غامق' : 'فاتح'}</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowPlatePhotoStudio((prev) => !prev)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                    showPlatePhotoStudio || currentRecord.vehiclePlatePhoto
+                      ? 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-300'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-300'
+                  }`}
+                  title="اختيار صورة لوحة السيارة من المعرض وتدويرها وتوسيعها"
+                >
+                  <Car className="w-4 h-4 text-blue-600" />
+                  <span>صورة اللوحة (تدوير وتوسيع)</span>
                 </button>
 
                 <button
@@ -514,8 +695,92 @@ export default function App() {
               </div>
             </div>
 
+            {/* Quick Vehicle Model Switcher Bar for Preview (توسان، برادو، تريوس، شاص، هيلوكس، باص H1) */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 shadow-xs flex flex-wrap items-center justify-between gap-2.5 no-print">
+              <div className="flex items-center gap-2">
+                <Car className="w-4 h-4 text-blue-600" />
+                <span className="text-xs font-black text-slate-800">
+                  نوع المركبة في الاستمارة:
+                </span>
+                <span className="text-[11px] text-blue-800 font-black bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">
+                  {currentRecord.model || currentRecord.vehicleType || 'توسان'}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { name: 'توسان', make: 'هيونداي (Hyundai)', type: 'suv', shape: 'جيب صالون مقفل (دفع رباعي)', cat: 'private', icon: '🚙' },
+                  { name: 'برادو', make: 'تويوتا (Toyota)', type: 'suv', shape: 'جيب صالون مقفل (دفع رباعي)', cat: 'private', icon: '🚙' },
+                  { name: 'تريوس', make: 'دايهاتسو (Daihatsu)', type: 'suv', shape: 'جيب مدمج دفع رباعي', cat: 'private', icon: '🚙' },
+                  { name: 'شاص', make: 'تويوتا (Toyota)', type: 'pickup', shape: 'شاص غمارتين (حوض)', cat: 'commercial', icon: '🛻' },
+                  { name: 'هيلوكس', make: 'تويوتا (Toyota)', type: 'pickup', shape: 'بيك أب غمارتين (حوض مزدوج)', cat: 'private', icon: '🛻' },
+                  { name: 'باص H1', make: 'هونداي', type: 'van', shape: 'باص مقفل (ركاب / فان)', cat: 'private', icon: '🚐' },
+                ].map((item) => {
+                  const isActive = currentRecord.model?.trim() === item.name;
+                  return (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={() => {
+                        const foundSample = sampleRegistrations.find(s => s.model === item.name);
+                        const updated: VehicleRegistration = foundSample
+                          ? { 
+                              ...foundSample, 
+                              id: currentRecord.id, 
+                              ownerPhoto: currentRecord.ownerPhoto || foundSample.ownerPhoto, 
+                              vehiclePlatePhoto: currentRecord.vehiclePlatePhoto || foundSample.vehiclePlatePhoto 
+                            }
+                          : {
+                              ...currentRecord,
+                              model: item.name,
+                              make: item.make,
+                              vehicleType: item.type,
+                              vehicleBodyShape: item.shape,
+                              plateCategory: (item.cat as any) || currentRecord.plateCategory,
+                              plateLetter: item.cat === 'commercial' ? 'نقل' : 'خصوصي',
+                              updatedAt: new Date().toISOString(),
+                            };
+                        setCurrentRecord(updated);
+                        setRecords(records.map(r => r.id === updated.id ? updated : r));
+                        showToast(`تم عرض استمارة: ${item.name} (${item.make})`);
+                      }}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black transition cursor-pointer ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-xs scale-105'
+                          : 'bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-800 border border-slate-200'
+                      }`}
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Optional Collapsible Plate Photo Editor in Preview View */}
+            {showPlatePhotoStudio && (
+              <div className="no-print animate-in fade-in duration-150">
+                <PlatePhotoEditor
+                  data={currentRecord}
+                  onChange={(updated) => {
+                    setCurrentRecord(updated);
+                    setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+                  }}
+                  onNotify={showToast}
+                />
+              </div>
+            )}
+
             {/* Render Printable A4 Sheet */}
-            <RegistrationFormA4 data={currentRecord} theme={formTheme} />
+            <RegistrationFormA4
+              data={currentRecord}
+              theme={formTheme}
+              onUpdateData={(updated) => {
+                setCurrentRecord(updated);
+                setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+              }}
+            />
           </div>
         )}
 

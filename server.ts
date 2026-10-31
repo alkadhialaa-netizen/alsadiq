@@ -180,28 +180,43 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
     const ai = getGenAI();
     const { mimeType, base64Data } = parseBase64Image(image);
 
-    const prompt = `أنت خبير تدقيق أوراق تسجيل المركبات والبيانات الجمركية (البيان الجمركي / شهادة المنشأ / سنوية المركبة).
-استخرج البيانات الفنية والميكانيكية للمركبة بدقة شديدة:
-1. الشركة الصانعة (make) مثل: تويوتا، هيونداي، مرسيدس، كيا، فورد، نيسان، بي إم دبليو...
-2. الطراز / الموديل (model) مثل: كامري، لاند كروزر، النترا، كورولا، سبورتاج...
-3. سنة الصنع (year) كرقم (مثلاً 2024 أو 2023)
-4. رقم الهيكل / الشاصي (vinNumber) - 17 حرفاً ورقم
-5. رقم المحرك (engineNumber)
-6. لون المركبة الأساسي (color) والثانوي إن وجد (secondaryColor)
-7. نوع المركبة (vehicleType) أحد القيم: 'sedan', 'suv', 'pickup', 'van', 'bus', 'truck', 'motorcycle', 'trailer'
-8. شكل الهيكل التفصيلي (vehicleBodyShape) مثل: صالون (سيدان 4 أبواب)، جيب صالون مقفل، شاص غمارتين حوض، باص مقفل ركاب، حافلة كبيرة، شاحنة نقل بضائع، دراجة نارية عادية...
-9. نوع الوقود (fuelType) أحد القيم: 'petrol', 'diesel', 'hybrid', 'electric', 'gas'
-10. سعة المحرك (engineCapacity) مثل 2000 cc أو 2.5L
-11. عدد الأسطوانات (cylindersCount) كرقم (مثلاً 4 أو 6 أو 8)
-12. عدد الركاب / المقاعد (seatingCapacity) كرقم
-13. الحمولة بالكيلوغرام (loadCapacityKg) كرقم
-14. بلد المنشأ (originCountry) مثل: اليابان، كوريا الجنوبية، ألمانيا، أمريكا، الصين...
-15. رقم اللوحة إن وجد (plateNumber)
-16. حرف أو تصنيف اللوحة (plateLetter, plateCategory)
-17. اسم المالك المذكور بالبيان إن وجد (ownerFullName)
-18. الرقم الوطني للمالك إن وجد (ownerNationalId)
+    const prompt = `أنت خبير تدقيق أوراق تسجيل المركبات والبيانات الجمركية الرسمية في الجمهورية اليمنية (البيان الجمركي / شهادة الإفراج الجمركي / جمارك تعز وعدن وصنعاء / شهادة المنشأ / سنوية المركبة).
+استخرج البيانات التالية بدقة بالغة من صورة البيان الجمركي:
 
-إذا لم يتوفر حقل، ضعه كقيمة افتراضية مناسبة أو اتركه فارغاً.`;
+1. رقم البيان الجمركي (customsDeclarationNumber): مثل C2006 أو 948271-TZ أو 07-2024-88421 أو أي رقم بيان جمركي مدون بالوثيقة.
+2. تاريخ البيان الجمركي (customsDeclarationDate): تاريخ صدور البيان الجمركي بصيغة YYYY/MM/DD أو كما هو مدون في الوثيقة (مثلاً 2024/05/12 أو 1445/11/04).
+3. جهة أو منفذ إصدار البيان الجمركي (customsIssuingOffice): مثل جمرك تعز، جمرك ميناء عدن، جمرك صنعاء، جمرك شحن، جمرك منفذ الوديعة، جمرك ميناء الحديدة...
+4. الشركة الصانعة / الماركة (make): مثل تويوتا (Toyota)، هيونداي (Hyundai)، دايهاتسو (Daihatsu)، كيا (Kia)، فورد، نيسان، سوزوكي، مرسيدس...
+5. نوع المركبة / الموديل التجاري (model): حدد اسم وموديل المركبة بدقة، وخاصة الطرازات والأنواع الشائعة في اليمن:
+   - توسان (Tucson)
+   - برادو (Prado / Land Cruiser Prado)
+   - تريوس (Terios)
+   - شاص (Land Cruiser 70 / Shas / بيك اب لاند كروزر)
+   - هيلوكس (Hilux)
+   - سنتافي (Santa Fe)
+   - باص H1 (Hyundai H1 / Starex)
+   - لاند كروزر (Land Cruiser صالون)
+   - كورولا (Corolla)
+   - كامري (Camry)
+   - يارس (Yaris)
+   - سبورتاج (Sportage)
+6. فئة الطراز / المواصفة الفرعية (vehicleModelTrim): مثل GLX, TXL, Limited, Standard, SE, V6, غمارتين, غمّارة, دبل 4x4...
+7. سنة الصنع / الموديل (year): كرقم (مثلاً 2015 أو 2020 أو 2023)
+8. رقم الهيكل / الشاصي / القاعدة (vinNumber): 17 حرفاً ورقم (أو كما هو مكتوب بدقة)
+9. رقم المحرك (engineNumber): رقم محرك المركبة
+10. لون المركبة الأساسي (color) والثانوي إن وجد (secondaryColor)
+11. نوع المركبة (vehicleType): أحد القيم: 'sedan', 'suv', 'pickup', 'van', 'bus', 'truck', 'motorcycle', 'trailer'
+12. شكل الهيكل التفصيلي (vehicleBodyShape): مثل: جيب صالون مقفل، شاص غمارتين حوض، باص مقفل (ركاب / فان)، صالون 4 أبواب، بيك أب غمّارة، حافلة ركاب، شاحنة نقل...
+13. نوع الوقود (fuelType): أحد القيم: 'petrol', 'diesel', 'hybrid', 'electric', 'gas'
+14. سعة المحرك (engineCapacity): مثل 2000 cc أو 2.7L أو 4.0L
+15. عدد الأسطوانات (cylindersCount): كرقم (مثلاً 4 أو 6 أو 8)
+16. عدد الركاب / المقاعد (seatingCapacity): كرقم
+17. الحمولة المصرح بها بالكيلوغرام (loadCapacityKg): كرقم
+18. بلد المنشأ والتصنيع (originCountry): مثل اليابان، كوريا الجنوبية، تايلاند، ألمانيا، أمريكا، الصين...
+19. اسم المالك المذكور بالبيان إن وجد (ownerFullName)
+20. الرقم الوطني أو رقم هوية المالك إن وجد (ownerNationalId)
+
+إذا لم يتوفر حقل معين بالوثيقة، ضعه فارغاً "" أو رقماً افتراضياً معقولاً.`;
 
     const response = await generateContentWithFallback(ai, {
       contents: {
@@ -220,9 +235,13 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            make: { type: Type.STRING, description: "الشركة الصانعة" },
-            model: { type: Type.STRING, description: "الموديل أو الطراز" },
-            year: { type: Type.INTEGER, description: "سنة الصنع" },
+            customsDeclarationNumber: { type: Type.STRING, description: "رقم البيان الجمركي" },
+            customsDeclarationDate: { type: Type.STRING, description: "تاريخ البيان الجمركي (YYYY/MM/DD)" },
+            customsIssuingOffice: { type: Type.STRING, description: "جهة أو منفذ إصدار البيان الجمركي (مثال: جمرك تعز)" },
+            make: { type: Type.STRING, description: "الشركة الصانعة / الماركة" },
+            model: { type: Type.STRING, description: "نوع المركبة / الموديل التجاري (مثل: توسان، برادو، تريوس، شاص، هيلوكس)" },
+            vehicleModelTrim: { type: Type.STRING, description: "فئة الطراز الفرعي (مثل: GLX, TXL, Limited, غمارتين)" },
+            year: { type: Type.INTEGER, description: "سنة الصنع (الموديل)" },
             vinNumber: { type: Type.STRING, description: "رقم الهيكل أو الشاصي VIN" },
             engineNumber: { type: Type.STRING, description: "رقم المحرك" },
             color: { type: Type.STRING, description: "اللون الأساسي" },

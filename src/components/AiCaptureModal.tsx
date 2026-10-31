@@ -13,8 +13,13 @@ import {
   CreditCard,
   Layers,
   ArrowRight,
-  Maximize2
+  Maximize2,
+  RotateCw,
+  RotateCcw,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
+import { rotateBase64Image } from './PlatePhotoEditor';
 
 export type ScanType = 'owner-id' | 'customs' | 'guarantor-1' | 'guarantor-2' | 'owner-photo' | 'plate-photo';
 
@@ -43,6 +48,7 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [hasCamera, setHasCamera] = useState<boolean>(true);
+  const [previewScale, setPreviewScale] = useState<number>(1);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -92,6 +98,7 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
       setExtractedPreview(null);
       setErrorMessage(null);
       setIsProcessing(false);
+      setPreviewScale(1);
       if (activeTab === 'camera') {
         startCamera();
       }
@@ -412,14 +419,18 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
             </div>
           )}
 
-          {/* 3. Preview Captured/Uploaded Image + AI Extraction Status */}
+          {/* 3. Preview Captured/Uploaded Image + Rotation/Zoom + AI Extraction Status */}
           {selectedImage && (
             <div className="space-y-4">
-              <div className="relative rounded-2xl overflow-hidden border border-slate-300 bg-slate-900 max-h-[280px] flex items-center justify-center">
+              <div className="relative rounded-2xl overflow-hidden border border-slate-300 bg-slate-900 min-h-[220px] max-h-[300px] flex items-center justify-center">
                 <img
                   src={selectedImage}
                   alt="Scanned Target"
-                  className="max-h-[280px] w-auto object-contain"
+                  className="max-h-[280px] w-auto object-contain transition-transform duration-150"
+                  style={{
+                    transform: `scale(${previewScale})`,
+                    transformOrigin: 'center center',
+                  }}
                 />
 
                 {/* Laser scan animation when processing AI */}
@@ -439,8 +450,53 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
                   className="absolute top-3 right-3 bg-black/70 hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded-lg backdrop-blur-xs flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  إعادة التصوير
+                  إعادة الاختيار / التصوير
                 </button>
+              </div>
+
+              {/* Quick Image Rotation & Expansion Toolbar inside Modal */}
+              <div className="bg-slate-100 border border-slate-200 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-bold text-slate-700">تدوير وتوسيع الصورة المحددة:</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const rotated = await rotateBase64Image(selectedImage, -90);
+                      setSelectedImage(rotated);
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-blue-50 text-slate-800 border border-slate-300 font-bold cursor-pointer transition"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                    <span>تدوير يسار 90°</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const rotated = await rotateBase64Image(selectedImage, 90);
+                      setSelectedImage(rotated);
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-blue-50 text-slate-800 border border-slate-300 font-bold cursor-pointer transition"
+                  >
+                    <RotateCw className="w-3.5 h-3.5 text-blue-600" />
+                    <span>تدوير يمين 90°</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewScale((s) => Math.min(3, Number((s + 0.2).toFixed(2))))}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer transition"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                    <span>توسيع +</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewScale((s) => Math.max(0.5, Number((s - 0.2).toFixed(2))))}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold cursor-pointer transition"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                    <span>تصغير -</span>
+                  </button>
+                </div>
               </div>
 
               {/* Error Message */}
@@ -469,20 +525,78 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
                   <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2">
                     <div className="flex items-center gap-2 text-emerald-900 font-extrabold text-xs sm:text-sm">
                       <Sparkles className="w-4 h-4 text-emerald-600" />
-                      <span>البيانات المستخرجة بالذكاء الاصطناعي بنجاح</span>
+                      <span>البيانات المستخرجة من الوثيقة بنجاح</span>
                     </div>
                     <span className="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
                       جاهزة للتطبيق
                     </span>
                   </div>
 
+                  {/* Highlighted Key Customs Fields if scanned customs */}
+                  {scanType === 'customs' && (extractedPreview.customsDeclarationNumber || extractedPreview.customsDeclarationDate || extractedPreview.model) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-emerald-100/70 p-2.5 rounded-xl border border-emerald-200">
+                      {extractedPreview.customsDeclarationNumber && (
+                        <div>
+                          <span className="text-[10px] text-emerald-800 font-bold block">رقم البيان الجمركي</span>
+                          <span className="font-mono font-black text-slate-950 text-xs sm:text-sm">{String(extractedPreview.customsDeclarationNumber)}</span>
+                        </div>
+                      )}
+                      {extractedPreview.customsDeclarationDate && (
+                        <div>
+                          <span className="text-[10px] text-emerald-800 font-bold block">تاريخ البيان الجمركي</span>
+                          <span className="font-mono font-black text-slate-950 text-xs sm:text-sm">{String(extractedPreview.customsDeclarationDate)}</span>
+                        </div>
+                      )}
+                      {extractedPreview.model && (
+                        <div>
+                          <span className="text-[10px] text-emerald-800 font-bold block">نوع المركبة / الطراز</span>
+                          <span className="font-black text-blue-900 text-xs sm:text-sm">
+                            {String(extractedPreview.model)} {extractedPreview.vehicleModelTrim ? `(${extractedPreview.vehicleModelTrim})` : ''}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     {Object.entries(extractedPreview).map(([key, val]) => {
                       if (!val || typeof val === 'object') return null;
+                      const arabicLabelMap: Record<string, string> = {
+                        customsDeclarationNumber: 'رقم البيان الجمركي',
+                        customsDeclarationDate: 'تاريخ البيان الجمركي',
+                        customsIssuingOffice: 'جهة إصدار البيان',
+                        make: 'الشركة الصانعة / الماركة',
+                        model: 'نوع المركبة / الموديل',
+                        vehicleModelTrim: 'فئة الطراز الفرعي',
+                        vehicleType: 'صنف المركبة',
+                        vehicleBodyShape: 'شكل الهيكل التفصيلي',
+                        year: 'سنة الصنع',
+                        vinNumber: 'رقم الشاصي (VIN)',
+                        engineNumber: 'رقم المحرك',
+                        color: 'اللون الأساسي',
+                        secondaryColor: 'اللون الثانوي',
+                        fuelType: 'نوع الوقود',
+                        engineCapacity: 'سعة المحرك',
+                        cylindersCount: 'عدد الأسطوانات',
+                        seatingCapacity: 'عدد المقاعد',
+                        loadCapacityKg: 'الحمولة (كغ)',
+                        originCountry: 'بلد المنشأ',
+                        ownerFullName: 'اسم المالك بالوثيقة',
+                        ownerNationalId: 'الرقم الوطني للمالك',
+                        fullName: 'الاسم الرباعي واللقب',
+                        nationalId: 'الرقم الوطني / الهوية',
+                        phone: 'رقم الهاتف',
+                        address: 'العنوان ومحل السكن',
+                        relationship: 'الصفة / صلة القرابة',
+                        plateNumber: 'رقم اللوحة',
+                        plateLetter: 'حرف اللوحة',
+                        notes: 'ملاحظات جمركية',
+                      };
+                      const label = arabicLabelMap[key] || key;
                       return (
-                        <div key={key} className="bg-white/90 p-2 rounded-lg border border-emerald-100">
-                          <span className="text-[10px] text-slate-400 font-bold block">{key}</span>
-                          <span className="font-bold text-slate-900">{String(val)}</span>
+                        <div key={key} className="bg-white/90 p-2 rounded-lg border border-emerald-100 flex flex-col justify-center">
+                          <span className="text-[10px] text-slate-400 font-bold block">{label}</span>
+                          <span className="font-bold text-slate-900 break-all">{String(val)}</span>
                         </div>
                       );
                     })}

@@ -3,6 +3,7 @@ import React from 'react';
 interface YemenNationalEmblemProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  preserveAspectRatio?: string;
 }
 
 /**
@@ -17,7 +18,8 @@ interface YemenNationalEmblemProps {
  */
 export const YemenNationalEmblem: React.FC<YemenNationalEmblemProps> = ({ 
   className = '',
-  size = 'md' 
+  size = 'md',
+  preserveAspectRatio = 'xMidYMid meet',
 }) => {
   const sizeClasses = {
     sm: 'w-16 h-11',
@@ -26,10 +28,13 @@ export const YemenNationalEmblem: React.FC<YemenNationalEmblemProps> = ({
     xl: 'w-44 h-28',
   };
 
+  const resolvedSizeClass = className.includes('w-') || className.includes('h-') ? '' : (sizeClasses[size] || '');
+
   return (
     <svg
       viewBox="0 0 340 220"
-      className={`${sizeClasses[size] || ''} ${className} select-none overflow-visible`}
+      preserveAspectRatio={preserveAspectRatio}
+      className={`${resolvedSizeClass} ${className} select-none overflow-visible`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >

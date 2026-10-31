@@ -69,6 +69,7 @@ export interface VehicleRegistration {
   loadCapacityKg: number;     // الحمولة المصرح بها (كغ)
   originCountry: string;      // بلد المنشأ
   customsDeclarationNumber?: string; // رقم البيان الجمركي
+  customsDeclarationDate?: string;   // تاريخ البيان الجمركي
   customsIssuingOffice?: string;     // جهة إصدار البيان (مثلاً تعز)
 
   // Owner Details
@@ -87,6 +88,11 @@ export interface VehicleRegistration {
   // Vehicle Documents & Photos
   vehicleCustomsPhoto?: string; // صورة البيان الجمركي
   vehiclePlatePhoto?: string;   // صورة اللوحة
+  platePhotoRotation?: number;  // زاوية تدوير صورة اللوحة
+  platePhotoScale?: number;     // نسبة تكبير وتوسيع صورة اللوحة
+  platePhotoFit?: 'contain' | 'cover' | 'fill'; // نمط ملاءمة وتوسيع صورة اللوحة داخل الإطار
+  platePhotoOffsetX?: number;   // إزاحة أفقية لصورة اللوحة
+  platePhotoOffsetY?: number;   // إزاحة عمودية لصورة اللوحة
 
   // Guarantors / Identifiers (المعرّفون)
   guarantor1?: GuarantorInfo;   // بيانات المعرّف الأول
