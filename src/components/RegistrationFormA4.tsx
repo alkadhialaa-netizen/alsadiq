@@ -5,6 +5,7 @@ import { MinistryOfInteriorEmblem } from './MinistryOfInteriorEmblem';
 import { TrafficDepartmentEmblem } from './TrafficDepartmentEmblem';
 import { ImagePlus, RotateCcw, RotateCw, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { rotateBase64Image, preparePlateImageFile } from './PlatePhotoEditor';
+import { isLikelyCarModelOrTrim, isLikelyEngineNumber, getCurrentDeviceDate } from '../utils/customsNormalizer';
 
 export type FormTheme = 'classic' | 'navy' | 'emerald' | 'crimson';
 
@@ -515,6 +516,25 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
     return data.vehicleType || 'توسان';
   })();
 
+  // Safeguard against inadvertent swap in stored records
+  const displayEngine = (() => {
+    const rawEng = data.engineNumber ? String(data.engineNumber).trim() : '';
+    const rawTrim = data.vehicleModelTrim ? String(data.vehicleModelTrim).trim() : '';
+    if (isLikelyCarModelOrTrim(rawEng) && isLikelyEngineNumber(rawTrim)) {
+      return rawTrim;
+    }
+    return rawEng;
+  })();
+
+  const displayTrim = (() => {
+    const rawEng = data.engineNumber ? String(data.engineNumber).trim() : '';
+    const rawTrim = data.vehicleModelTrim ? String(data.vehicleModelTrim).trim() : '';
+    if (isLikelyCarModelOrTrim(rawEng) && isLikelyEngineNumber(rawTrim)) {
+      return rawEng;
+    }
+    return rawTrim && rawTrim.trim() !== '' ? rawTrim : (data.model || 'قياسي');
+  })();
+
   // Fuel in Arabic
   const fuelName = data.fuelType === 'petrol' ? 'بترول' 
     : data.fuelType === 'diesel' ? 'ديزل' 
@@ -872,7 +892,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
 
                 {/* Dates below plate */}
                 <div className="flex items-center justify-between w-full max-w-[280px] text-[10px] font-bold text-slate-600 mt-1 px-1">
-                  <span>إصدار: <span className="font-mono font-bold text-slate-900">{data.issueDate || '2026/7/7'}</span></span>
+                  <span>إصدار: <span className="font-mono font-bold text-slate-900">{data.issueDate && data.issueDate !== '2026/7/7' ? data.issueDate : getCurrentDeviceDate()}</span></span>
                   <span className="text-slate-300 font-bold">•</span>
                   <span>انتهاء: <span className="font-mono font-bold text-slate-900">{data.expiryDate || '---'}</span></span>
                 </div>
@@ -1311,9 +1331,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">الطراز:</span>
                   <span className="font-bold text-slate-800 text-[10.5px]">
-                    {data.vehicleModelTrim && data.vehicleModelTrim.trim() !== '' 
-                      ? data.vehicleModelTrim 
-                      : (data.model && data.model !== vehicleTypeName ? data.model : '---')}
+                    {displayTrim}
                   </span>
                 </div>
               </div>
@@ -1352,7 +1370,9 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">رقم المحرك:</span>
-                  <span className="font-mono font-black text-slate-950 text-[11px]" dir="ltr">{data.engineNumber || '0'}</span>
+                  <span className="font-mono font-black text-slate-950 text-[11px]" dir="ltr">
+                    {displayEngine && displayEngine.trim() !== '' ? displayEngine : '---'}
+                  </span>
                 </div>
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">نوع الوقود:</span>
@@ -1376,12 +1396,12 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">جهة إصدار البيان:</span>
-                  <span className="font-black text-slate-950 text-[11px]">{data.customsIssuingOffice || data.governorate || 'تعز'}</span>
+                  <span className="font-black text-slate-950 text-[11px]">{data.customsIssuingOffice && data.customsIssuingOffice.trim() !== '' ? data.customsIssuingOffice : '---'}</span>
                 </div>
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">تاريخ البيان الجمركي:</span>
                   <span className="font-mono font-black text-slate-950 text-[11px]" dir="ltr">
-                    {data.customsDeclarationDate || data.issueDate || '2026/7/7'}
+                    {data.customsDeclarationDate && data.customsDeclarationDate !== '2026/7/7' ? data.customsDeclarationDate : '---'}
                   </span>
                 </div>
               </div>

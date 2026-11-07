@@ -12,7 +12,8 @@ import {
   RefreshCw,
   Users,
   LogOut,
-  UserCircle
+  UserCircle,
+  FileSpreadsheet
 } from 'lucide-react';
 import { UserAccount } from '../types';
 import { YemenNationalEmblem } from './YemenNationalEmblem';
@@ -23,6 +24,7 @@ interface HeaderProps {
   onPrint: () => void;
   onExportPDF: () => void;
   onExportImage: () => void;
+  onExportExcel?: () => void;
   onNewRecord: () => void;
   onBackup: () => void;
   onRestore: () => void;
@@ -40,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
   onPrint,
   onExportPDF,
   onExportImage,
+  onExportExcel,
   onNewRecord,
   onBackup,
   onRestore,
@@ -214,6 +217,20 @@ export const Header: React.FC<HeaderProps> = ({
               <FileDown className="w-4 h-4" />
               تصدير PDF (A4)
             </button>
+
+            {/* Export Official Excel */}
+            {onExportExcel && (
+              <button
+                type="button"
+                onClick={onExportExcel}
+                disabled={isExporting}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs shadow-md transition cursor-pointer disabled:opacity-50"
+                title="تصدير بيانات الاستمارة كملف إكسل Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
+                <span>تصدير Excel</span>
+              </button>
+            )}
 
             {/* New Button */}
             <button

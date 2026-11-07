@@ -22,7 +22,8 @@ import {
   AlertCircle,
   Eye,
   Trash2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ArrowLeftRight
 } from 'lucide-react';
 import { VehicleRegistration, PlateCategory, VehicleType, FuelType, GuarantorInfo } from '../types';
 import { PlateVisualizer } from './PlateVisualizer';
@@ -31,6 +32,7 @@ import { AiCaptureModal, ScanType } from './AiCaptureModal';
 import { PlatePhotoEditor } from './PlatePhotoEditor';
 import { VEHICLE_BODY_OPTIONS, deduceVehicleAndBodyShape } from '../data/vehicleBodyOptions';
 import { POPULAR_YEMEN_VEHICLES, PopularVehicle } from '../data/popularYemenVehicles';
+import { detectAndCorrectCustomsSwap, cleanEngineNumber, getCurrentDeviceDate, YEMEN_CUSTOMS_OFFICES } from '../utils/customsNormalizer';
 
 interface RegistrationInputFormProps {
   currentData: VehicleRegistration;
@@ -89,6 +91,38 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
     showToast(`تم تحديد نوع المركبة: ${veh.name} (${veh.make})`);
   };
 
+  const handleSwapEngineAndModel = () => {
+    const curEng = currentData.engineNumber ? String(currentData.engineNumber).trim() : '';
+    const curTrim = currentData.vehicleModelTrim ? String(currentData.vehicleModelTrim).trim() : '';
+    const curModel = currentData.model ? String(currentData.model).trim() : '';
+
+    if (curTrim && curTrim !== curEng) {
+      onChange({
+        ...currentData,
+        engineNumber: cleanEngineNumber(curTrim),
+        vehicleModelTrim: curEng,
+        updatedAt: new Date().toISOString(),
+      });
+      showToast(`تم تبديل رقم المحرك (${cleanEngineNumber(curTrim)}) مع الطراز (${curEng || 'فارغ'})`);
+    } else if (curModel) {
+      onChange({
+        ...currentData,
+        engineNumber: cleanEngineNumber(curModel),
+        model: curEng,
+        updatedAt: new Date().toISOString(),
+      });
+      showToast(`تم تبديل رقم المحرك (${cleanEngineNumber(curModel)}) مع نوع المركبة (${curEng || 'فارغ'})`);
+    } else {
+      onChange({
+        ...currentData,
+        engineNumber: cleanEngineNumber(curTrim),
+        vehicleModelTrim: curEng,
+        updatedAt: new Date().toISOString(),
+      });
+      showToast('تم تبديل الحقول بنجاح');
+    }
+  };
+
   const updateGuarantor = (guarantorKey: 'guarantor1' | 'guarantor2', field: keyof GuarantorInfo, value: string) => {
     const current = currentData[guarantorKey] || {
       fullName: '',
@@ -131,48 +165,61 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
       });
       showToast('تم استخراج بيانات بطاقة المالك بنجاح وتعبئة الحقول تلقائياً!');
     } else if (currentScanType === 'customs') {
-      const modelCandidate = (extracted.model || '').trim();
+      // 0. Auto-check and correct any inverted engine number and vehicle model/trim
+      const { data: normExtracted, wasSwapped } = detectAndCorrectCustomsSwap(extracted);
+
+      // 1. Clean and normalize engine number
+      const cleanEngine = cleanEngineNumber(normExtracted.engineNumber);
+
+      // 2. Comprehensive check for popular Yemen vehicle models
+      const textToSearch = `${normExtracted.model || ''} ${normExtracted.make || ''} ${normExtracted.vehicleModelTrim || ''} ${normExtracted.notes || ''}`.toLowerCase();
       const matchedPopular = POPULAR_YEMEN_VEHICLES.find(
-        p => modelCandidate && (
-          modelCandidate.includes(p.name) ||
-          p.name.includes(modelCandidate) ||
-          (p.nameEn && modelCandidate.toLowerCase().includes(p.nameEn.toLowerCase()))
+        p => (
+          (normExtracted.model && (normExtracted.model.includes(p.name) || p.name.includes(normExtracted.model.trim()))) ||
+          (p.nameEn && textToSearch.includes(p.nameEn.toLowerCase())) ||
+          textToSearch.includes(p.name)
         )
       );
 
+      const resolvedModel = matchedPopular ? matchedPopular.name : (normExtracted.model?.trim() || currentData.model);
+      const resolvedTrim = normExtracted.vehicleModelTrim?.trim() || (matchedPopular ? matchedPopular.defaultTrim : currentData.vehicleModelTrim);
+
       const deduced = deduceVehicleAndBodyShape(
-        `${extracted.make || (matchedPopular ? matchedPopular.make : '')} ${modelCandidate}`,
-        extracted.vehicleType || (matchedPopular ? matchedPopular.vehicleType : undefined),
-        extracted.vehicleBodyShape || (matchedPopular ? matchedPopular.vehicleBodyShape : undefined)
+        `${normExtracted.make || (matchedPopular ? matchedPopular.make : '')} ${resolvedModel}`,
+        normExtracted.vehicleType || (matchedPopular ? matchedPopular.vehicleType : undefined),
+        normExtracted.vehicleBodyShape || (matchedPopular ? matchedPopular.vehicleBodyShape : undefined)
       );
 
       onChange({
         ...currentData,
-        customsDeclarationNumber: extracted.customsDeclarationNumber || currentData.customsDeclarationNumber,
-        customsDeclarationDate: extracted.customsDeclarationDate || currentData.customsDeclarationDate,
-        customsIssuingOffice: extracted.customsIssuingOffice || currentData.customsIssuingOffice,
-        make: extracted.make || (matchedPopular ? matchedPopular.make : currentData.make),
-        model: matchedPopular ? matchedPopular.name : (extracted.model || currentData.model),
-        vehicleModelTrim: extracted.vehicleModelTrim || (matchedPopular ? matchedPopular.defaultTrim : currentData.vehicleModelTrim),
-        year: extracted.year ? Number(extracted.year) : currentData.year,
-        vinNumber: extracted.vinNumber ? String(extracted.vinNumber).toUpperCase() : currentData.vinNumber,
-        engineNumber: extracted.engineNumber || currentData.engineNumber,
-        color: extracted.color || currentData.color,
-        secondaryColor: extracted.secondaryColor || currentData.secondaryColor,
-        vehicleType: (extracted.vehicleType as any) || (matchedPopular ? (matchedPopular.name as any) : (deduced.vehicleType as any)) || currentData.vehicleType,
-        vehicleBodyShape: extracted.vehicleBodyShape || (matchedPopular ? matchedPopular.vehicleBodyShape : deduced.bodyShape) || currentData.vehicleBodyShape,
-        fuelType: (extracted.fuelType as any) || (matchedPopular ? matchedPopular.fuelType : currentData.fuelType),
-        engineCapacity: extracted.engineCapacity || (matchedPopular?.engineCapacity) || currentData.engineCapacity,
-        cylindersCount: extracted.cylindersCount ? Number(extracted.cylindersCount) : (matchedPopular?.cylindersCount ?? currentData.cylindersCount),
-        seatingCapacity: extracted.seatingCapacity ? Number(extracted.seatingCapacity) : currentData.seatingCapacity,
-        loadCapacityKg: extracted.loadCapacityKg ? Number(extracted.loadCapacityKg) : currentData.loadCapacityKg,
-        originCountry: extracted.originCountry || currentData.originCountry,
-        plateNumber: extracted.plateNumber || currentData.plateNumber,
+        customsDeclarationNumber: normExtracted.customsDeclarationNumber || currentData.customsDeclarationNumber,
+        customsDeclarationDate: normExtracted.customsDeclarationDate || currentData.customsDeclarationDate,
+        customsIssuingOffice: normExtracted.customsIssuingOffice || currentData.customsIssuingOffice,
+        make: normExtracted.make || (matchedPopular ? matchedPopular.make : currentData.make),
+        model: resolvedModel,
+        vehicleModelTrim: resolvedTrim,
+        year: normExtracted.year ? Number(normExtracted.year) : currentData.year,
+        vinNumber: normExtracted.vinNumber ? String(normExtracted.vinNumber).toUpperCase().trim() : currentData.vinNumber,
+        engineNumber: cleanEngine || currentData.engineNumber,
+        color: normExtracted.color || currentData.color,
+        secondaryColor: normExtracted.secondaryColor || currentData.secondaryColor,
+        vehicleType: (normExtracted.vehicleType as any) || (matchedPopular ? (matchedPopular.vehicleType as any) : (deduced.vehicleType as any)) || currentData.vehicleType,
+        vehicleBodyShape: normExtracted.vehicleBodyShape || (matchedPopular ? matchedPopular.vehicleBodyShape : deduced.bodyShape) || currentData.vehicleBodyShape,
+        fuelType: (normExtracted.fuelType as any) || (matchedPopular ? matchedPopular.fuelType : currentData.fuelType),
+        engineCapacity: normExtracted.engineCapacity || (matchedPopular?.engineCapacity) || currentData.engineCapacity,
+        cylindersCount: normExtracted.cylindersCount ? Number(normExtracted.cylindersCount) : (matchedPopular?.cylindersCount ?? currentData.cylindersCount),
+        seatingCapacity: normExtracted.seatingCapacity ? Number(normExtracted.seatingCapacity) : currentData.seatingCapacity,
+        loadCapacityKg: normExtracted.loadCapacityKg ? Number(normExtracted.loadCapacityKg) : currentData.loadCapacityKg,
+        originCountry: normExtracted.originCountry || currentData.originCountry,
+        plateNumber: normExtracted.plateNumber || currentData.plateNumber,
         vehicleCustomsPhoto: imageBase64,
-        notes: extracted.notes ? `${currentData.notes ? currentData.notes + ' | ' : ''}${extracted.notes}` : currentData.notes,
+        notes: normExtracted.notes ? `${currentData.notes ? currentData.notes + ' | ' : ''}${normExtracted.notes}` : currentData.notes,
         updatedAt: new Date().toISOString(),
       });
-      showToast('تم استخراج رقم وتاريخ البيان الجمركي، والموديل، والمواصفات الفنية بنجاح!');
+      showToast(wasSwapped 
+        ? 'تم استخراج البيانات وتصحيح ترتيب رقم المحرك والطراز بنجاح!' 
+        : 'تم استخراج رقم وتاريخ البيان الجمركي، والموديل، والمحرك والمواصفات الفنية بنجاح!'
+      );
     } else if (currentScanType === 'guarantor-1') {
       const g1 = currentData.guarantor1 || { fullName: '', nationalId: '', phone: '', address: '', relationship: '' };
       onChange({
@@ -961,9 +1008,20 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
 
             {/* Engine Number */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                رقم المحرك
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">
+                  رقم المحرك (Engine No)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleSwapEngineAndModel}
+                  className="text-[10.5px] text-amber-800 hover:text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 font-extrabold px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer transition shadow-xs"
+                  title="انقر لتبديل رقم المحرك مع الطراز الفرعي أو نوع المركبة فوراً"
+                >
+                  <ArrowLeftRight className="w-3 h-3 text-amber-700" />
+                  <span>تبديل مع الطراز</span>
+                </button>
+              </div>
               <input
                 type="text"
                 value={currentData.engineNumber}
@@ -1196,11 +1254,17 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
               </label>
               <input
                 type="text"
+                list="yemen-customs-offices-list-form"
                 value={currentData.customsIssuingOffice || ''}
                 onChange={(e) => updateField('customsIssuingOffice', e.target.value)}
-                placeholder="مثال: جمرك ميناء عدن / جمرك تعز"
+                placeholder="مثال: جمرك منفذ الوديعة / ميناء عدن"
                 className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <datalist id="yemen-customs-offices-list-form">
+                {YEMEN_CUSTOMS_OFFICES.map(c => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </div>
           </div>
         </div>
@@ -1700,14 +1764,29 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
 
             {/* Issue Date & Expiry */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                تاريخ الإصدار
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">
+                  تاريخ الإصدار
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = getCurrentDeviceDate();
+                    updateField('issueDate', today);
+                    showToast(`تم ضبط تاريخ الإصدار لتاريخ اليوم الحالي من الجوال: ${today}`);
+                  }}
+                  className="text-[10px] text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded font-bold cursor-pointer transition"
+                  title="ضبط تاريخ الإصدار لتاريخ اليوم الحالي تلقائياً من جهاز الجوال"
+                >
+                  تاريخ اليوم الحالي
+                </button>
+              </div>
               <input
-                type="date"
-                value={currentData.issueDate}
+                type="text"
+                value={currentData.issueDate && currentData.issueDate !== '2026/7/7' ? currentData.issueDate : getCurrentDeviceDate()}
                 onChange={(e) => updateField('issueDate', e.target.value)}
-                className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={getCurrentDeviceDate()}
+                className="w-full text-sm font-bold font-mono px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>

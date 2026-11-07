@@ -16,7 +16,8 @@ import {
   Search,
   Eye,
   SlidersHorizontal,
-  ImagePlus
+  ImagePlus,
+  FileSpreadsheet
 } from 'lucide-react';
 import { VehicleRegistration, UserAccount } from './types';
 import { sampleRegistrations, defaultNewRegistration } from './data/mockTemplates';
@@ -30,30 +31,69 @@ import { UserManagementModal } from './components/UserManagementModal';
 import { PlatePhotoEditor } from './components/PlatePhotoEditor';
 import { getCurrentSession, logoutUser } from './utils/authService';
 import { exportToA4PDF, exportToImage, printDocument } from './utils/pdfExport';
+import { exportSingleRegistrationToExcel, exportAllRegistrationsToExcel } from './utils/excelExport';
+import { getCurrentDeviceDate } from './utils/customsNormalizer';
 
 const STORAGE_KEY = 'vehicle_registrations_db_v1';
+const LAST_ARCHIVE_CLEANUP_KEY = 'last_archive_cleanup_timestamp_v1';
+const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000; // 48 hours = 2 days
+
+// Helper to keep only the latest 2 registration forms
+export const pruneArchiveToLatestTwo = (recordsList: VehicleRegistration[]): VehicleRegistration[] => {
+  return [...recordsList]
+    .sort((a, b) => {
+      const timeA = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      const timeB = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      return timeA - timeB;
+    })
+    .slice(0, 2);
+};
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentSession());
   const [isUserManagementOpen, setIsUserManagementOpen] = useState<boolean>(false);
 
+  const [lastCleanupTimestamp, setLastCleanupTimestamp] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(LAST_ARCHIVE_CLEANUP_KEY);
+      return saved ? Number(saved) : Date.now();
+    } catch {
+      return Date.now();
+    }
+  });
+
   const [records, setRecords] = useState<VehicleRegistration[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
+      const lastCleanupStr = localStorage.getItem(LAST_ARCHIVE_CLEANUP_KEY);
+      const now = Date.now();
+      const lastCleanup = lastCleanupStr ? Number(lastCleanupStr) : 0;
+      const shouldPurge = !lastCleanupStr || (now - lastCleanup) >= TWO_DAYS_MS;
+
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          if (shouldPurge && parsed.length > 2) {
+            const pruned = pruneArchiveToLatestTwo(parsed);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(pruned));
+            localStorage.setItem(LAST_ARCHIVE_CLEANUP_KEY, String(now));
+            return pruned;
+          }
           return parsed;
         }
       }
     } catch (e) {
       console.warn('Failed to load records from storage', e);
     }
-    return sampleRegistrations;
+    return pruneArchiveToLatestTwo(sampleRegistrations);
   });
 
   const [currentRecord, setCurrentRecord] = useState<VehicleRegistration>(() => {
-    return records[0] || sampleRegistrations[0];
+    const initialRec = records[0] || sampleRegistrations[0];
+    if (initialRec && (!initialRec.issueDate || initialRec.issueDate === '2026/7/7')) {
+      return { ...initialRec, issueDate: getCurrentDeviceDate() };
+    }
+    return initialRec;
   });
 
   const [activeView, setActiveView] = useState<'preview' | 'new' | 'form' | 'registry'>('new');
@@ -83,6 +123,65 @@ export default function App() {
     }
   }, [records]);
 
+  // Automated 2-Day (48-hour) Archive Cleanup
+  useEffect(() => {
+    const runArchiveCleanupCheck = () => {
+      try {
+        const lastCleanupStr = localStorage.getItem(LAST_ARCHIVE_CLEANUP_KEY);
+        const now = Date.now();
+        const lastCleanup = lastCleanupStr ? Number(lastCleanupStr) : 0;
+
+        if (!lastCleanupStr || (now - lastCleanup) >= TWO_DAYS_MS) {
+          setRecords(prev => {
+            if (prev.length > 2) {
+              const pruned = pruneArchiveToLatestTwo(prev);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(pruned));
+              localStorage.setItem(LAST_ARCHIVE_CLEANUP_KEY, String(now));
+              setLastCleanupTimestamp(now);
+              showToast('نظام الأرشيف: تم تنفيذ التصفية الدورية (كل يومين) والإبقاء على آخر استمارتين فقط');
+              return pruned;
+            }
+            localStorage.setItem(LAST_ARCHIVE_CLEANUP_KEY, String(now));
+            setLastCleanupTimestamp(now);
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.warn('Error during automated archive purge check', err);
+      }
+    };
+
+    runArchiveCleanupCheck();
+    const interval = setInterval(runArchiveCleanupCheck, 10 * 60 * 1000); // Check every 10 minutes
+    return () => clearInterval(interval);
+  }, []);
+
+  // Manual Archive Purge to keep only the latest two records
+  const handlePurgeArchive = () => {
+    if (records.length <= 2) {
+      showToast('الأرشيف يحتوي بالفعل على استمارتين فقط — لا توجد استمارات قديمة لحذفها');
+      return;
+    }
+
+    const confirmPurge = window.confirm(
+      `تأكيد تصفية الأرشيف:\n\nهل أنت متأكد من تصفية كامل الاستمارات من الأرشيف والإبقاء على آخر استمارتين فقط؟\n\n- عدد الاستمارات الحالي: ${records.length}\n- سيتم حذف: ${records.length - 2} استمارة قديمة\n- سيتم الإبقاء على: أحدث استمارتين فقط\n- التصفية التلقائية كل يومين مفعلة ومستمرة`
+    );
+
+    if (confirmPurge) {
+      const now = Date.now();
+      const pruned = pruneArchiveToLatestTwo(records);
+      setRecords(pruned);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(pruned));
+      localStorage.setItem(LAST_ARCHIVE_CLEANUP_KEY, String(now));
+      setLastCleanupTimestamp(now);
+
+      if (!pruned.some(r => r.id === currentRecord.id)) {
+        setCurrentRecord(pruned[0]);
+      }
+      showToast('تمت تصفية الأرشيف بنجاح! تم الإبقاء على آخر استمارتين فقط، وسيتم التصفية تلقائياً كل يومين.');
+    }
+  };
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -107,6 +206,8 @@ export default function App() {
       ...defaultNewRegistration,
       id: `reg-${Date.now()}`,
       registrationNumber: newRegNum,
+      issueDate: getCurrentDeviceDate(),
+      customsIssuingOffice: '',
       plateNumber: randomPlate,
       plateLetter: randomLetter,
       officerName: currentUser ? (currentUser.username === 'صادق' || currentUser.username === 'sadeq' ? 'المقدم / صادق القاضي' : `${currentUser.rank || 'الملازم'} / ${currentUser.fullName}`) : 'المقدم / صادق القاضي',
@@ -267,6 +368,33 @@ export default function App() {
     }, 100);
   };
 
+  // Export current registration form to Excel (.xlsx)
+  const handleExportExcel = (targetRecord?: VehicleRegistration) => {
+    const record = targetRecord || currentRecord;
+    try {
+      exportSingleRegistrationToExcel(record);
+      showToast(`تم تصدير استمارة المركبة (${record.plateNumber || ''} ${record.plateLetter || ''}) كملف إكسل Excel بنجاح!`);
+    } catch (err) {
+      console.error('Failed to export registration to Excel:', err);
+      showToast('حدث خطأ أثناء تصدير ملف الإكسل.');
+    }
+  };
+
+  // Export all records from archive to Excel (.xlsx)
+  const handleExportAllExcel = () => {
+    if (records.length === 0) {
+      showToast('لا توجد سجلات في الأرشيف لتصديرها');
+      return;
+    }
+    try {
+      exportAllRegistrationsToExcel(records);
+      showToast(`تم تصدير كشف كامل بجميع المركبات (${records.length} مركبة) كملف إكسل Excel بنجاح!`);
+    } catch (err) {
+      console.error('Failed to export all records to Excel:', err);
+      showToast('حدث خطأ أثناء تصدير كشف الإكسل.');
+    }
+  };
+
   // Reset current form
   const handleResetForm = () => {
     if (confirm('هل تريد إعادة تعيين حقول الاستمارة الحالية؟')) {
@@ -357,6 +485,7 @@ export default function App() {
         onPrint={handlePrint}
         onExportPDF={() => handleExportPDF()}
         onExportImage={() => handleExportImage()}
+        onExportExcel={() => handleExportExcel()}
         onNewRecord={handleNewRecord}
         onBackup={handleBackup}
         onRestore={handleRestoreClick}
@@ -675,6 +804,16 @@ export default function App() {
 
                 <button
                   type="button"
+                  onClick={() => handleExportExcel()}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                  title="تصدير بيانات الاستمارة كملف إكسل Excel (.xlsx)"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
+                  تصدير ملف إكسل (Excel)
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleExportImage()}
                   disabled={isExporting}
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
@@ -800,6 +939,10 @@ export default function App() {
                 handleSaveRecord(rec, true);
                 setTimeout(() => handleExportPDF(), 300);
               }}
+              onExportExcel={(rec) => {
+                handleSaveRecord(rec, false);
+                handleExportExcel(rec);
+              }}
               onResetToNew={handleNewRecord}
               currentUser={currentUser}
             />
@@ -832,6 +975,10 @@ export default function App() {
               onQuickExportPDF={handleExportPDF}
               onQuickExportImage={handleExportImage}
               onLoadSamples={handleLoadSamples}
+              onPurgeArchive={handlePurgeArchive}
+              lastCleanupTimestamp={lastCleanupTimestamp}
+              onQuickExportExcel={handleExportExcel}
+              onExportAllExcel={handleExportAllExcel}
             />
 
             {/* Backup / Restore Strip */}

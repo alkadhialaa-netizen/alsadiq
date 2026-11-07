@@ -180,14 +180,23 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
     const ai = getGenAI();
     const { mimeType, base64Data } = parseBase64Image(image);
 
-    const prompt = `أنت خبير تدقيق أوراق تسجيل المركبات والبيانات الجمركية الرسمية في الجمهورية اليمنية (البيان الجمركي / شهادة الإفراج الجمركي / جمارك تعز وعدن وصنعاء / شهادة المنشأ / سنوية المركبة).
+    const prompt = `أنت خبير تدقيق أوراق تسجيل المركبات والبيانات الجمركية الرسمية في الجمهورية اليمنية (البيان الجمركي / شهادة الإفراج الجمركي / جمارك تعز وعدن وصنعاء وشحن والوديعة / شهادة المنشأ / سنوية المركبة).
 استخرج البيانات التالية بدقة بالغة من صورة البيان الجمركي:
 
 1. رقم البيان الجمركي (customsDeclarationNumber): مثل C2006 أو 948271-TZ أو 07-2024-88421 أو أي رقم بيان جمركي مدون بالوثيقة.
 2. تاريخ البيان الجمركي (customsDeclarationDate): تاريخ صدور البيان الجمركي بصيغة YYYY/MM/DD أو كما هو مدون في الوثيقة (مثلاً 2024/05/12 أو 1445/11/04).
-3. جهة أو منفذ إصدار البيان الجمركي (customsIssuingOffice): مثل جمرك تعز، جمرك ميناء عدن، جمرك صنعاء، جمرك شحن، جمرك منفذ الوديعة، جمرك ميناء الحديدة...
+3. جهة أو منفذ إصدار البيان الجمركي (customsIssuingOffice): 
+   اقرأ بدقة اسم الجمرك أو المنفذ المطبوع في أعلى وثيقة البيان (الترويسة) أو في الأختام الرسمية أو خانة (الدائرة / المنفذ الجمركي).
+   ⚠️ تنبيه شديد الصرامة والأهمية:
+   - إذا كان المكتوب في الورقة أو الختم هو "الوديعة" أو "منفذ الوديعة" أو "جمرك الوديعة" اكتب بالضبط: "جمرك منفذ الوديعة". لا تكتب تعز أبداً!
+   - إذا كان مكتوباً "شحن" اكتب: "جمرك منفذ شحن".
+   - إذا كان مكتوباً "صرفيت" اكتب: "جمرك منفذ صرفيت".
+   - إذا كان مكتوباً "ميناء عدن" أو "المنطقة الحرة" اكتب: "جمرك ميناء عدن (المنطقة الحرة)".
+   - إذا كان مكتوباً "ميناء المكلا" اكتب: "جمرك ميناء المكلا".
+   - إذا كان مكتوباً "تعز" اكتب: "جمرك تعز".
+   - ⚠️ لا تفترض أو تخمن أبداً "جمرك تعز" إذا كانت الوثيقة تخص منفذ الوديعة أو أي منفذ آخر! اكتب المنفذ الفعلي المطبوع فقط.
 4. الشركة الصانعة / الماركة (make): مثل تويوتا (Toyota)، هيونداي (Hyundai)، دايهاتسو (Daihatsu)، كيا (Kia)، فورد، نيسان، سوزوكي، مرسيدس...
-5. نوع المركبة / الموديل التجاري (model): حدد اسم وموديل المركبة بدقة، وخاصة الطرازات والأنواع الشائعة في اليمن:
+5. نوع المركبة / الموديل التجاري (model): حدد اسم وموديل المركبة بدقة بالغة واكتبه بالعربية مباشرة، وخاصة الطرازات والأنواع الشائعة في اليمن:
    - توسان (Tucson)
    - برادو (Prado / Land Cruiser Prado)
    - تريوس (Terios)
@@ -200,10 +209,18 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
    - كامري (Camry)
    - يارس (Yaris)
    - سبورتاج (Sportage)
-6. فئة الطراز / المواصفة الفرعية (vehicleModelTrim): مثل GLX, TXL, Limited, Standard, SE, V6, غمارتين, غمّارة, دبل 4x4...
+   - راف فور (RAV4)
+   إذا كان المذكور في البيان أو وصف البضاعة يشير إلى أي من هذه الموديلات أو أسماءها بالإنجليزية، اكتب الاسم بالعربي في حقل model (مثلاً: "توسان" أو "برادو" أو "تريوس" أو "شاص" أو "هيلوكس"). لا تتركه عاماً كـ "سيارة" أو فارغاً.
+6. فئة الطراز / المواصفة الفرعية (vehicleModelTrim): مثل GLX, TXL, Limited, Standard, GLS, V6, غمارتين, غمّارة, دبل 4x4, ونش...
 7. سنة الصنع / الموديل (year): كرقم (مثلاً 2015 أو 2020 أو 2023)
-8. رقم الهيكل / الشاصي / القاعدة (vinNumber): 17 حرفاً ورقم (أو كما هو مكتوب بدقة)
-9. رقم المحرك (engineNumber): رقم محرك المركبة
+8. رقم الهيكل / الشاصي / القاعدة (vinNumber): 17 حرفاً ورقم (أو كما هو مكتوب بدقة في الوثيقة)
+9. رقم المحرك (engineNumber): رقم محرك المركبة (Engine No / رقم المكينة).
+
+⚠️⚠️ تنبيه حاسم وصارم لمنع التبديل والخلط الشائع بين رقم المحرك والطراز:
+- رقم المحرك (engineNumber) هو كود ورقم المكينة الميكانيكي المكون من أرقام أو حروف إنجليزية مع أرقام (مثل: G4NA123456 أو 2TR-5489211 أو 1GR948210 أو 641664). لا تضع فيه أبداً اسم السيارة أو الطراز (توسان، برادو، GLS، TXL...)!
+- نوع وطراز المركبة (model / vehicleModelTrim) هو الاسم التجاري وفئة التجهيز للسيارة (مثل: توسان، برادو، تريوس، شاص، هيلوكس، سنتافي، باص H1، GLS، TXL، GLX). لا تضع فيه أبداً رقم المحرك أو كود المكينة!
+- في جداول البيانات الجمركية اليمنية: خانة "الطراز" تخص فئة ونوع السيارة، وخانة "رقم المحرك" تخص أرقام المكينة؛ احرص بشدة على عدم عكسهما أو تبديلهما.
+
 10. لون المركبة الأساسي (color) والثانوي إن وجد (secondaryColor)
 11. نوع المركبة (vehicleType): أحد القيم: 'sedan', 'suv', 'pickup', 'van', 'bus', 'truck', 'motorcycle', 'trailer'
 12. شكل الهيكل التفصيلي (vehicleBodyShape): مثل: جيب صالون مقفل، شاص غمارتين حوض، باص مقفل (ركاب / فان)، صالون 4 أبواب، بيك أب غمّارة، حافلة ركاب، شاحنة نقل...
@@ -237,13 +254,13 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
           properties: {
             customsDeclarationNumber: { type: Type.STRING, description: "رقم البيان الجمركي" },
             customsDeclarationDate: { type: Type.STRING, description: "تاريخ البيان الجمركي (YYYY/MM/DD)" },
-            customsIssuingOffice: { type: Type.STRING, description: "جهة أو منفذ إصدار البيان الجمركي (مثال: جمرك تعز)" },
+            customsIssuingOffice: { type: Type.STRING, description: "جهة أو منفذ إصدار البيان الجمركي بدقة (مثال: جمرك منفذ الوديعة، جمرك ميناء عدن، جمرك شحن)" },
             make: { type: Type.STRING, description: "الشركة الصانعة / الماركة" },
-            model: { type: Type.STRING, description: "نوع المركبة / الموديل التجاري (مثل: توسان، برادو، تريوس، شاص، هيلوكس)" },
+            model: { type: Type.STRING, description: "نوع المركبة / الموديل التجاري (مثل: توسان، برادو، تريوس، شاص، هيلوكس، سنتافي)" },
             vehicleModelTrim: { type: Type.STRING, description: "فئة الطراز الفرعي (مثل: GLX, TXL, Limited, غمارتين)" },
             year: { type: Type.INTEGER, description: "سنة الصنع (الموديل)" },
             vinNumber: { type: Type.STRING, description: "رقم الهيكل أو الشاصي VIN" },
-            engineNumber: { type: Type.STRING, description: "رقم المحرك" },
+            engineNumber: { type: Type.STRING, description: "رقم المحرك أو رقم المكينة بدقة بدون فراغات أو رموز" },
             color: { type: Type.STRING, description: "اللون الأساسي" },
             secondaryColor: { type: Type.STRING, description: "اللون الثانوي" },
             vehicleType: {
@@ -269,7 +286,7 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
             plateLetter: { type: Type.STRING, description: "حرف اللوحة إن وجد" },
             ownerFullName: { type: Type.STRING, description: "اسم المالك إن وجد في البيان" },
             ownerNationalId: { type: Type.STRING, description: "الرقم الوطني للمالك إن وجد" },
-            notes: { type: Type.STRING, description: "ملاحظات جمركية أو قيود" },
+            notes: { type: Type.STRING, description: "ملاحظات جمركية أو قيود أو بيانات إضافية مستخرجة" },
           },
           required: ["make", "model", "year", "vinNumber"],
         },
@@ -277,6 +294,140 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
     });
 
     const parsed = JSON.parse(response.text?.trim() || "{}");
+
+    // Post-processing & Normalization for Engine Number, Model, and Customs data
+    const rawText = response.text || "";
+
+    // 0. Automatic Detection & Correction of Inverted/Swapped Engine Number and Model/Trim
+    const looksLikeCarModelOrTrim = (val: any): boolean => {
+      if (!val) return false;
+      const str = String(val).trim().toLowerCase();
+      const keywords = [
+        'توسان', 'برادو', 'تريوس', 'شاص', 'هيلوكس', 'سنتافي', 'باص', 'لاند كروزر', 'لاندكروزر',
+        'كورولا', 'كامري', 'يارس', 'سبورتاج', 'راف فور', 'راف4', 'صالون', 'جيب', 'غمارتين', 'غمّارة',
+        'دبل', 'حوض', 'بيك اب', 'بيك أب', 'أوتوماتيك', 'عادي', 'قياسي', 'فل كامل', 'حافلة',
+        'tucson', 'prado', 'terios', 'hilux', 'shas', 'santa fe', 'corolla', 'camry', 'sportage', 'rav4',
+        'gls', 'txl', 'glx', 'vxr', 'gxr', 'limited', 'standard', 'se', 'le', 'xle', 'v6', 'v8', '4wd', '4x4'
+      ];
+      return keywords.some(k => str.includes(k));
+    };
+
+    const looksLikeEngineNumber = (val: any): boolean => {
+      if (!val) return false;
+      const str = String(val).trim();
+      if (looksLikeCarModelOrTrim(str) && !/\d{3,}/.test(str)) {
+        return false;
+      }
+      const hasEngineCode = /^(?:2TR|1GR|2AZ|1NZ|1HZ|3RZ|2AR|1VD|5L|3SZ|HC|K3|G4|D4|G6|QR|VQ|HR)[\-_]?[A-Z0-9]*/i.test(str);
+      const hasSerialDigits = /\d{3,}/.test(str);
+      return hasEngineCode || hasSerialDigits;
+    };
+
+    let rawEng = parsed.engineNumber ? String(parsed.engineNumber).trim() : '';
+    let rawMdl = parsed.model ? String(parsed.model).trim() : '';
+    let rawTrm = parsed.vehicleModelTrim ? String(parsed.vehicleModelTrim).trim() : '';
+
+    // Check if engineNumber and model/trim were swapped
+    if (looksLikeCarModelOrTrim(rawEng) || (!/\d/.test(rawEng) && (looksLikeEngineNumber(rawTrm) || looksLikeEngineNumber(rawMdl)))) {
+      if (looksLikeEngineNumber(rawTrm)) {
+        // Swap engineNumber with vehicleModelTrim
+        const temp = rawEng;
+        parsed.engineNumber = rawTrm;
+        parsed.vehicleModelTrim = temp;
+        rawEng = rawTrm;
+        rawTrm = temp;
+      } else if (looksLikeEngineNumber(rawMdl)) {
+        // Swap engineNumber with model
+        const temp = rawEng;
+        parsed.engineNumber = rawMdl;
+        parsed.model = temp;
+        rawEng = rawMdl;
+        rawMdl = temp;
+      }
+    } else if (looksLikeEngineNumber(rawTrm) && !looksLikeEngineNumber(rawEng)) {
+      parsed.engineNumber = rawTrm;
+      parsed.vehicleModelTrim = looksLikeCarModelOrTrim(rawEng) ? rawEng : 'قياسي';
+      rawEng = rawTrm;
+    } else if (looksLikeEngineNumber(rawMdl) && !looksLikeEngineNumber(rawEng)) {
+      parsed.engineNumber = rawMdl;
+      parsed.model = looksLikeCarModelOrTrim(rawEng) ? rawEng : '';
+      rawEng = rawMdl;
+    }
+
+    // 1. Clean and normalize engine number
+    if (parsed.engineNumber) {
+      let eng = String(parsed.engineNumber).trim();
+      eng = eng.replace(/^(?:رقم\s*المحرك|المحرك|رقم\s*المكينة|المكينة|محرك\s*رقم|Engine\s*(?:No|#|\.)?|ENG\s*(?:NO|#|\.)?|M\/N)[\s:]*/i, '');
+      eng = eng.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
+      eng = eng.replace(/[\*#]/g, '').trim().toUpperCase();
+      parsed.engineNumber = eng;
+    } else {
+      // Search raw text or notes for engine number if AI missed it
+      const engMatch = rawText.match(/(?:رقم\s*المحرك|المحرك|رقم\s*المكينة|المكينة|محرك\s*رقم|Engine\s*(?:No|#|\.)?|ENG\s*(?:NO|#|\.)?|M\/N)[\s:"]*([A-Z0-9\-\/]{4,20})/i);
+      if (engMatch && engMatch[1]) {
+        let eng = engMatch[1].trim();
+        eng = eng.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
+        parsed.engineNumber = eng.replace(/[\*#]/g, '').trim().toUpperCase();
+      }
+    }
+
+    // 2. Normalize Popular Yemen Models if model is missing or generic
+    const popularNames = [
+      { ar: 'توسان', en: 'tucson', make: 'هيونداي (Hyundai)' },
+      { ar: 'برادو', en: 'prado', make: 'تويوتا (Toyota)' },
+      { ar: 'تريوس', en: 'terios', make: 'دايهاتسو (Daihatsu)' },
+      { ar: 'شاص', en: 'shas', make: 'تويوتا (Toyota)' },
+      { ar: 'هيلوكس', en: 'hilux', make: 'تويوتا (Toyota)' },
+      { ar: 'سنتافي', en: 'santa fe', make: 'هيونداي (Hyundai)' },
+      { ar: 'باص H1', en: 'h1', make: 'هيونداي (Hyundai)' },
+      { ar: 'لاند كروزر', en: 'land cruiser', make: 'تويوتا (Toyota)' },
+      { ar: 'كورولا', en: 'corolla', make: 'تويوتا (Toyota)' },
+      { ar: 'كامري', en: 'camry', make: 'تويوتا (Toyota)' },
+      { ar: 'يارس', en: 'yaris', make: 'تويوتا (Toyota)' },
+      { ar: 'سبورتاج', en: 'sportage', make: 'كيا (Kia)' },
+      { ar: 'راف فور', en: 'rav4', make: 'تويوتا (Toyota)' },
+    ];
+
+    const currentModelStr = `${parsed.model || ''} ${parsed.make || ''} ${parsed.vehicleModelTrim || ''} ${parsed.notes || ''}`.toLowerCase();
+    for (const pop of popularNames) {
+      if (currentModelStr.includes(pop.ar) || currentModelStr.includes(pop.en)) {
+        if (!parsed.model || parsed.model === 'سيارة' || parsed.model === 'صالون' || parsed.model.toLowerCase() === pop.en) {
+          parsed.model = pop.ar;
+        }
+        if (!parsed.make) {
+          parsed.make = pop.make;
+        }
+        break;
+      }
+    }
+
+    // 3. Normalize digits in customs declaration number
+    if (parsed.customsDeclarationNumber) {
+      parsed.customsDeclarationNumber = String(parsed.customsDeclarationNumber)
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString())
+        .trim();
+    }
+
+    // 4. Normalize Customs Issuing Office (منفذ / جمرك الإصدار)
+    const combinedCustomsText = `${parsed.customsIssuingOffice || ''} ${parsed.notes || ''} ${rawText}`.toLowerCase();
+    if (combinedCustomsText.includes('الوديع') || combinedCustomsText.includes('الوديعه') || combinedCustomsText.includes('وديعة') || combinedCustomsText.includes('وديعه')) {
+      parsed.customsIssuingOffice = 'جمرك منفذ الوديعة';
+    } else if (combinedCustomsText.includes('شحن') || combinedCustomsText.includes('منفذ شحن')) {
+      parsed.customsIssuingOffice = 'جمرك منفذ شحن';
+    } else if (combinedCustomsText.includes('صرفيت') || combinedCustomsText.includes('سرفيت')) {
+      parsed.customsIssuingOffice = 'جمرك منفذ صرفيت';
+    } else if (combinedCustomsText.includes('المنطقة الحرة') || combinedCustomsText.includes('ميناء عدن') || combinedCustomsText.includes('عدن')) {
+      parsed.customsIssuingOffice = 'جمرك ميناء عدن (المنطقة الحرة)';
+    } else if (combinedCustomsText.includes('ميناء المكلا') || combinedCustomsText.includes('المكلا')) {
+      parsed.customsIssuingOffice = 'جمرك ميناء المكلا';
+    } else if (combinedCustomsText.includes('ميناء الحديدة') || combinedCustomsText.includes('الحديدة')) {
+      parsed.customsIssuingOffice = 'جمرك ميناء الحديدة';
+    } else if (combinedCustomsText.includes('صنعاء')) {
+      parsed.customsIssuingOffice = 'جمرك صنعاء';
+    } else if (combinedCustomsText.includes('الراهدة')) {
+      parsed.customsIssuingOffice = 'جمرك الراهدة';
+    }
+
     return res.json({ success: true, data: parsed });
   } catch (error: any) {
     console.error("Error in /api/extract/customs-declaration:", error);

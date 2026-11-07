@@ -10,7 +10,13 @@ import {
   Car, 
   ExternalLink,
   Filter,
-  Plus
+  Plus,
+  RotateCcw,
+  Clock,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle,
+  FileSpreadsheet
 } from 'lucide-react';
 import { VehicleRegistration, PlateCategory } from '../types';
 import { PlateVisualizer } from './PlateVisualizer';
@@ -24,6 +30,10 @@ interface VehicleRegistryTableProps {
   onQuickExportPDF: (record: VehicleRegistration) => void;
   onQuickExportImage: (record: VehicleRegistration) => void;
   onLoadSamples: () => void;
+  onPurgeArchive?: () => void;
+  lastCleanupTimestamp?: number;
+  onQuickExportExcel?: (record: VehicleRegistration) => void;
+  onExportAllExcel?: () => void;
 }
 
 export const VehicleRegistryTable: React.FC<VehicleRegistryTableProps> = ({
@@ -35,6 +45,10 @@ export const VehicleRegistryTable: React.FC<VehicleRegistryTableProps> = ({
   onQuickExportPDF,
   onQuickExportImage,
   onLoadSamples,
+  onPurgeArchive,
+  lastCleanupTimestamp,
+  onQuickExportExcel,
+  onExportAllExcel,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -58,7 +72,7 @@ export const VehicleRegistryTable: React.FC<VehicleRegistryTableProps> = ({
   });
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
       {/* Search & Filter Header */}
       <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -101,6 +115,19 @@ export const VehicleRegistryTable: React.FC<VehicleRegistryTableProps> = ({
             <option value="motorcycle">دراجات</option>
           </select>
 
+          {/* Export All to Excel Button */}
+          {onExportAllExcel && (
+            <button
+              type="button"
+              onClick={onExportAllExcel}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+              title="تصدير كشف إكسل بجميع المركبات المسجلة في الأرشيف (.xlsx)"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
+              <span>تصدير كشف Excel</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onAddNew}
@@ -110,6 +137,51 @@ export const VehicleRegistryTable: React.FC<VehicleRegistryTableProps> = ({
             ترقيم جديد
           </button>
         </div>
+      </div>
+
+      {/* 2-Day Automatic Archive Cleanup Status & Manual Purge Banner */}
+      <div className="mx-4 sm:mx-5 my-3.5 p-3.5 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50/90 via-orange-50/70 to-amber-50/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+            <Clock className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-black text-xs text-amber-950">
+                نظام تصفية الأرشيف الدوري (كل يومين):
+              </span>
+              <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                تصفية تلقائية دورية كل 48 ساعة مفعلة
+              </span>
+            </div>
+            <p className="text-[11.5px] text-amber-900 font-semibold mt-1 leading-relaxed">
+              يقوم النظام تلقائياً كل يومين بتصفية استمارات الأرشيف وحذف السجلات القديمة مع <strong className="font-black text-amber-950 underline decoration-amber-500 underline-offset-2">الإبقاء على آخر استمارتين فقط</strong> لضمان سرعة وكفاءة العمل.
+            </p>
+          </div>
+        </div>
+
+        {onPurgeArchive && (
+          <div className="flex items-center gap-2 w-full md:w-auto justify-end shrink-0">
+            <button
+              type="button"
+              onClick={onPurgeArchive}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black shadow-xs transition cursor-pointer whitespace-nowrap ${
+                records.length > 2
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-200 ring-2 ring-rose-500/30'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+              }`}
+              title="تصفية الأرشيف بالكامل والإبقاء على آخر استمارتين فقط"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>
+                {records.length > 2 
+                  ? `تصفية الأرشيف الآن (إبقاء آخر 2 وحذف ${records.length - 2})` 
+                  : 'الأرشيف مصفى (يحتوي آخر استمارتين)'}
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Table Content */}
@@ -234,6 +306,18 @@ export const VehicleRegistryTable: React.FC<VehicleRegistryTableProps> = ({
                       >
                         <ImageIcon className="w-4 h-4" />
                       </button>
+
+                      {/* Excel Quick Export */}
+                      {onQuickExportExcel && (
+                        <button
+                          type="button"
+                          onClick={() => onQuickExportExcel(rec)}
+                          title="تصدير استمارة المركبة كملف إكسل Excel (.xlsx)"
+                          className="p-1.5 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 transition cursor-pointer"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                        </button>
+                      )}
 
                       {/* Edit */}
                       <button

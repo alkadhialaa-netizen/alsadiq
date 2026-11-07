@@ -17,9 +17,11 @@ import {
   RotateCw,
   RotateCcw,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  ArrowLeftRight
 } from 'lucide-react';
 import { rotateBase64Image } from './PlatePhotoEditor';
+import { detectAndCorrectCustomsSwap, swapEngineAndModelFields } from '../utils/customsNormalizer';
 
 export type ScanType = 'owner-id' | 'customs' | 'guarantor-1' | 'guarantor-2' | 'owner-photo' | 'plate-photo';
 
@@ -46,6 +48,7 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
   const [processStatus, setProcessStatus] = useState<string>('');
   const [extractedPreview, setExtractedPreview] = useState<any | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [swapNotice, setSwapNotice] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [hasCamera, setHasCamera] = useState<boolean>(true);
   const [previewScale, setPreviewScale] = useState<number>(1);
@@ -232,7 +235,17 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
       }
 
       if (result.success && result.data) {
-        setExtractedPreview(result.data);
+        let finalData = result.data;
+        if (scanType === 'customs') {
+          const { data: corrected, wasSwapped, reason } = detectAndCorrectCustomsSwap(result.data);
+          finalData = corrected;
+          if (wasSwapped) {
+            setSwapNotice(reason || 'تم تصحيح التبديل بين رقم المحرك والطراز تلقائياً');
+          } else {
+            setSwapNotice(null);
+          }
+        }
+        setExtractedPreview(finalData);
         setProcessStatus('تم استخراج البيانات بنجاح!');
       } else {
         throw new Error('لم يتم استخراج نصوص كافية من الصورة. يمكنك إعادة المحاولة أو المتابعة يدوياً.');
@@ -250,6 +263,16 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
     }
   };
 
+  // Manual 1-click swap for engine number and model/trim
+  const handleManualSwap = () => {
+    if (!extractedPreview) return;
+    const swapped = swapEngineAndModelFields(extractedPreview);
+    setExtractedPreview(swapped);
+    const eng = swapped.engineNumber || 'فارغ';
+    const trm = swapped.vehicleModelTrim || swapped.model || 'فارغ';
+    setSwapNotice(`تم التبديل بنجاح: رقم المحرك (${eng}) ⟷ الطراز (${trm})`);
+  };
+
   // Confirm and Apply Data
   const handleApplyData = () => {
     if (!selectedImage) return;
@@ -262,6 +285,7 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
     setSelectedImage(null);
     setExtractedPreview(null);
     setErrorMessage(null);
+    setSwapNotice(null);
     if (activeTab === 'camera') {
       startCamera();
     }
@@ -532,9 +556,30 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
                     </span>
                   </div>
 
+                  {/* Customs Swap Notification & Quick Swap Control */}
+                  {scanType === 'customs' && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 p-2.5 bg-amber-50/90 border border-amber-300 rounded-xl text-xs">
+                      <div className="flex items-center gap-2 text-amber-950 font-bold">
+                        <ArrowLeftRight className="w-4 h-4 text-amber-700 shrink-0" />
+                        <span>
+                          {swapNotice || 'هل رقم المحرك والطراز بحاجة لتبديل بسبب ترتيب أعمدة البيان؟'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleManualSwap}
+                        className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer shrink-0"
+                        title="انقر لعكس حقل رقم المحرك مع الطراز فوراً"
+                      >
+                        <ArrowLeftRight className="w-3.5 h-3.5" />
+                        <span>تبديل رقم المحرك والطراز</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Highlighted Key Customs Fields if scanned customs */}
-                  {scanType === 'customs' && (extractedPreview.customsDeclarationNumber || extractedPreview.customsDeclarationDate || extractedPreview.model) && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-emerald-100/70 p-2.5 rounded-xl border border-emerald-200">
+                  {scanType === 'customs' && (extractedPreview.customsDeclarationNumber || extractedPreview.customsDeclarationDate || extractedPreview.model || extractedPreview.engineNumber || extractedPreview.customsIssuingOffice) && (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-emerald-100/70 p-2.5 rounded-xl border border-emerald-200">
                       {extractedPreview.customsDeclarationNumber && (
                         <div>
                           <span className="text-[10px] text-emerald-800 font-bold block">رقم البيان الجمركي</span>
@@ -543,18 +588,28 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
                       )}
                       {extractedPreview.customsDeclarationDate && (
                         <div>
-                          <span className="text-[10px] text-emerald-800 font-bold block">تاريخ البيان الجمركي</span>
+                          <span className="text-[10px] text-emerald-800 font-bold block">تاريخ البيان</span>
                           <span className="font-mono font-black text-slate-950 text-xs sm:text-sm">{String(extractedPreview.customsDeclarationDate)}</span>
                         </div>
                       )}
-                      {extractedPreview.model && (
-                        <div>
-                          <span className="text-[10px] text-emerald-800 font-bold block">نوع المركبة / الطراز</span>
-                          <span className="font-black text-blue-900 text-xs sm:text-sm">
-                            {String(extractedPreview.model)} {extractedPreview.vehicleModelTrim ? `(${extractedPreview.vehicleModelTrim})` : ''}
-                          </span>
-                        </div>
-                      )}
+                      <div>
+                        <span className="text-[10px] text-emerald-800 font-bold block">منفذ / جمرك الإصدار</span>
+                        <span className="font-bold text-emerald-950 text-xs sm:text-sm">
+                          {String(extractedPreview.customsIssuingOffice || 'غير محدد')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-emerald-800 font-bold block">نوع المركبة / الموديل</span>
+                        <span className="font-black text-blue-900 text-xs sm:text-sm">
+                          {String(extractedPreview.model || 'غير محدد')} {extractedPreview.vehicleModelTrim ? `(${extractedPreview.vehicleModelTrim})` : ''}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-emerald-800 font-bold block">رقم المحرك (Engine No)</span>
+                        <span className="font-mono font-black text-slate-950 text-xs sm:text-sm tracking-wider">
+                          {String(extractedPreview.engineNumber || 'غير متوفر')}
+                        </span>
+                      </div>
                     </div>
                   )}
 
