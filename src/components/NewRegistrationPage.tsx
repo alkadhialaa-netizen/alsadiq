@@ -39,9 +39,14 @@ import { PlateVisualizer } from './PlateVisualizer';
 import { AiCaptureModal, ScanType } from './AiCaptureModal';
 import { RegistrationFormA4 } from './RegistrationFormA4';
 import { PlatePhotoEditor } from './PlatePhotoEditor';
-import { VEHICLE_BODY_OPTIONS, deduceVehicleAndBodyShape } from '../data/vehicleBodyOptions';
+import { VEHICLE_BODY_OPTIONS } from '../data/vehicleBodyOptions';
 import { POPULAR_YEMEN_VEHICLES, PopularVehicle } from '../data/popularYemenVehicles';
-import { detectAndCorrectCustomsSwap, cleanEngineNumber, getCurrentDeviceDate, YEMEN_CUSTOMS_OFFICES } from '../utils/customsNormalizer';
+import {
+  cleanEngineNumber,
+  getCurrentDeviceDate,
+  YEMEN_CUSTOMS_OFFICES,
+  resolveAccurateCustomsVehicleData,
+} from '../utils/customsNormalizer';
 
 interface NewRegistrationPageProps {
   currentData: VehicleRegistration;
@@ -189,58 +194,15 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
       });
       showToast('تم حفظ صورة المالك الشخصية (4×6) بنجاح');
     } else if (currentScanType === 'customs') {
-      // 0. Auto-check and correct any inverted engine number and vehicle model/trim
-      const { data: normExtracted, wasSwapped } = detectAndCorrectCustomsSwap(extracted);
-
-      // 1. Clean and normalize engine number
-      const cleanEngine = cleanEngineNumber(normExtracted.engineNumber);
-
-      // 2. Comprehensive check for popular Yemen vehicle models
-      const textToSearch = `${normExtracted.model || ''} ${normExtracted.make || ''} ${normExtracted.vehicleModelTrim || ''} ${normExtracted.notes || ''}`.toLowerCase();
-      const matchedPopular = POPULAR_YEMEN_VEHICLES.find(
-        p => (
-          (normExtracted.model && (normExtracted.model.includes(p.name) || p.name.includes(normExtracted.model.trim()))) ||
-          (p.nameEn && textToSearch.includes(p.nameEn.toLowerCase())) ||
-          textToSearch.includes(p.name)
-        )
-      );
-
-      const resolvedModel = matchedPopular ? matchedPopular.name : (normExtracted.model?.trim() || currentData.model);
-      const resolvedTrim = normExtracted.vehicleModelTrim?.trim() || (matchedPopular ? matchedPopular.defaultTrim : currentData.vehicleModelTrim);
-
-      const deduced = deduceVehicleAndBodyShape(
-        `${normExtracted.make || (matchedPopular ? matchedPopular.make : '')} ${resolvedModel}`,
-        normExtracted.vehicleType || (matchedPopular ? matchedPopular.vehicleType : undefined),
-        normExtracted.vehicleBodyShape || (matchedPopular ? matchedPopular.vehicleBodyShape : undefined)
-      );
-
+      const { updated, wasSwapped } = resolveAccurateCustomsVehicleData(extracted, currentData);
       onChange({
-        ...currentData,
-        customsDeclarationNumber: normExtracted.customsDeclarationNumber || currentData.customsDeclarationNumber,
-        customsDeclarationDate: normExtracted.customsDeclarationDate || currentData.customsDeclarationDate,
-        customsIssuingOffice: normExtracted.customsIssuingOffice || currentData.customsIssuingOffice,
-        vinNumber: normExtracted.vinNumber ? String(normExtracted.vinNumber).toUpperCase().trim() : currentData.vinNumber,
-        engineNumber: cleanEngine || currentData.engineNumber,
-        make: normExtracted.make || (matchedPopular ? matchedPopular.make : currentData.make),
-        model: resolvedModel,
-        vehicleModelTrim: resolvedTrim,
-        year: normExtracted.year ? Number(normExtracted.year) : currentData.year,
-        color: normExtracted.color || currentData.color,
-        secondaryColor: normExtracted.secondaryColor || currentData.secondaryColor,
-        vehicleType: (normExtracted.vehicleType as any) || (matchedPopular ? (matchedPopular.vehicleType as any) : (deduced.vehicleType as any)) || currentData.vehicleType,
-        vehicleBodyShape: normExtracted.vehicleBodyShape || (matchedPopular ? matchedPopular.vehicleBodyShape : deduced.bodyShape) || currentData.vehicleBodyShape,
-        fuelType: (normExtracted.fuelType as any) || (matchedPopular ? matchedPopular.fuelType : currentData.fuelType),
-        engineCapacity: normExtracted.engineCapacity || (matchedPopular?.engineCapacity) || currentData.engineCapacity,
-        cylindersCount: normExtracted.cylindersCount ? Number(normExtracted.cylindersCount) : (matchedPopular?.cylindersCount ?? currentData.cylindersCount),
-        seatingCapacity: normExtracted.seatingCapacity ? Number(normExtracted.seatingCapacity) : currentData.seatingCapacity,
-        loadCapacityKg: normExtracted.loadCapacityKg ? Number(normExtracted.loadCapacityKg) : currentData.loadCapacityKg,
-        originCountry: normExtracted.originCountry || currentData.originCountry,
+        ...updated,
         vehicleCustomsPhoto: imageBase64 || currentData.vehicleCustomsPhoto,
         updatedAt: new Date().toISOString(),
       });
-      showToast(wasSwapped 
-        ? 'تم استخراج البيانات وتصحيح ترتيب رقم المحرك والطراز بنجاح!' 
-        : 'تم استخراج رقم وتاريخ البيان الجمركي، والموديل، والمحرك والمواصفات الفنية بنجاح!'
+      showToast(wasSwapped
+        ? 'تم استخراج البيانات بدقة وتصحيح ترتيب رقم المحرك والطراز بنجاح!'
+        : 'تم استخراج بيانات المركبة والشكل والمواصفات من البيان الجمركي بدقة بنجاح!'
       );
     } else if (currentScanType === 'guarantor-1') {
       const g1 = currentData.guarantor1 || { fullName: '', nationalId: '', phone: '', address: '', relationship: '' };
@@ -904,10 +866,11 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">فصيلة الدم</label>
                   <select
-                    value={currentData.ownerBloodType || 'O+'}
+                    value={currentData.ownerBloodType || ''}
                     onChange={(e) => updateField('ownerBloodType', e.target.value)}
                     className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   >
+                    <option value="">-- اختر --</option>
                     <option value="O+">O+</option>
                     <option value="A+">A+</option>
                     <option value="B+">B+</option>
@@ -923,7 +886,7 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">مكان وتاريخ إصدار الهوية</label>
                   <input
                     type="text"
-                    value={currentData.ownerIdIssuePlace || 'تعز'}
+                    value={currentData.ownerIdIssuePlace || ''}
                     onChange={(e) => updateField('ownerIdIssuePlace', e.target.value)}
                     placeholder="مثال: الأحوال المدنية - تعز"
                     className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-600 focus:outline-none"
@@ -1126,7 +1089,7 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">سعة المحرك (CC)</label>
                   <input
                     type="text"
-                    value={currentData.engineCapacity || '2000 CC'}
+                    value={currentData.engineCapacity || ''}
                     onChange={(e) => updateField('engineCapacity', e.target.value)}
                     placeholder="مثال: 2000 CC"
                     className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-medium font-mono focus:ring-2 focus:ring-blue-600 focus:outline-none"
@@ -1185,16 +1148,22 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    الطراز الفرعي (فئة الموديل / Trim)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-black text-slate-800">
+                      الطراز (الرقم أو الكود المسجل بالبيان)
+                    </label>
+                    <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-md">
+                      من وثيقة الجمرك
+                    </span>
+                  </div>
                   <input
                     type="text"
                     value={currentData.vehicleModelTrim || ''}
                     onChange={(e) => updateField('vehicleModelTrim', e.target.value)}
-                    placeholder="مثال: GLX / TXL / Limited / غمارتين"
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    placeholder="رقم أو رمز الطراز بالبيان (مثال: 2018 / H1 / 150 / 2.7 / TXL)"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black text-slate-900 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   />
+                  <p className="text-[10px] text-slate-500 mt-1">الرقم أو الرمز المطبوع في خانة (الطراز) بالبيان الجمركي</p>
                 </div>
 
                 <div>
@@ -1203,11 +1172,17 @@ export const NewRegistrationPage: React.FC<NewRegistrationPageProps> = ({
                   </label>
                   <input
                     type="text"
+                    list="yemen-body-shapes-list-new"
                     value={currentData.vehicleBodyShape || ''}
                     onChange={(e) => updateField('vehicleBodyShape', e.target.value)}
-                    placeholder="مثال: باص مقفل (ركاب / فان)، صالون 4 أبواب، شاص غمارتين..."
+                    placeholder="مثال: جيب صالون مقفل (دفع رباعي)، صالون (سيدان 4 أبواب)..."
                     className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-bold focus:ring-2 focus:ring-blue-600 focus:outline-none"
                   />
+                  <datalist id="yemen-body-shapes-list-new">
+                    {VEHICLE_BODY_OPTIONS.flatMap((opt) => opt.shapes).map((shape) => (
+                      <option key={shape} value={shape} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 

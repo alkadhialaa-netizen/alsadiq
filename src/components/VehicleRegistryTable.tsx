@@ -139,7 +139,7 @@ export const VehicleRegistryTable: React.FC<VehicleRegistryTableProps> = ({
         </div>
       </div>
 
-      {/* 2-Day Automatic Archive Cleanup Status & Manual Purge Banner */}
+      {/* Weekly Automatic Archive Cleanup Status & Manual Purge Banner */}
       <div className="mx-4 sm:mx-5 my-3.5 p-3.5 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50/90 via-orange-50/70 to-amber-50/90 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
@@ -148,15 +148,15 @@ export const VehicleRegistryTable: React.FC<VehicleRegistryTableProps> = ({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-black text-xs text-amber-950">
-                نظام تصفية الأرشيف الدوري (كل يومين):
+                نظام تصفية الأرشيف الدوري (كل أسبوع):
               </span>
               <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                تصفية تلقائية دورية كل 48 ساعة مفعلة
+                تصفية تلقائية دورية كل 7 أيام مفعلة
               </span>
             </div>
             <p className="text-[11.5px] text-amber-900 font-semibold mt-1 leading-relaxed">
-              يقوم النظام تلقائياً كل يومين بتصفية استمارات الأرشيف وحذف السجلات القديمة مع <strong className="font-black text-amber-950 underline decoration-amber-500 underline-offset-2">الإبقاء على آخر استمارتين فقط</strong> لضمان سرعة وكفاءة العمل.
+              يقوم النظام تلقائياً كل أسبوع بتصفية استمارات الأرشيف وحذف السجلات القديمة مع <strong className="font-black text-amber-950 underline decoration-amber-500 underline-offset-2">الإبقاء على آخر استمارتين فقط</strong> لضمان سرعة وكفاءة العمل.
             </p>
           </div>
         </div>
@@ -247,7 +247,7 @@ export const VehicleRegistryTable: React.FC<VehicleRegistryTableProps> = ({
                       {rec.make} {rec.model}
                     </div>
                     <div className="text-slate-500 font-semibold text-[11px] mt-0.5">
-                      موديل {rec.year} • لون {rec.color} • {rec.fuelType}
+                      موديل {rec.year} {rec.vehicleModelTrim ? `• طراز ${rec.vehicleModelTrim}` : ''} • لون {rec.color}
                     </div>
                   </td>
 

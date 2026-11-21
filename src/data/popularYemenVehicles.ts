@@ -183,6 +183,141 @@ export const POPULAR_YEMEN_VEHICLES: PopularVehicle[] = [
     icon: '🚐',
     description: 'دايهاتسو دباب - باص نقل صغير أو بضائع'
   },
+  {
+    name: 'فورتشنر',
+    nameEn: 'Fortuner',
+    make: 'تويوتا (Toyota)',
+    model: 'فورتشنر',
+    vehicleType: 'suv',
+    vehicleBodyShape: 'جيب صالون مقفل (دفع رباعي)',
+    defaultTrim: 'GX2 دبل 4x4',
+    category: 'private',
+    fuelType: 'petrol',
+    engineCapacity: '2700 cc',
+    cylindersCount: 4,
+    icon: '🚙',
+    description: 'تويوتا فورتشنر - جيب عائلي دفع رباعي'
+  },
+  {
+    name: 'راف فور',
+    nameEn: 'RAV4',
+    make: 'تويوتا (Toyota)',
+    model: 'راف فور',
+    vehicleType: 'suv',
+    vehicleBodyShape: 'كروس أوفر مدمج (Crossover)',
+    defaultTrim: 'XLE أوتوماتيك',
+    category: 'private',
+    fuelType: 'petrol',
+    engineCapacity: '2500 cc',
+    cylindersCount: 4,
+    icon: '🚙',
+    description: 'تويوتا راف فور - جيب كروس أوفر مدمج'
+  },
+  {
+    name: 'سبورتاج',
+    nameEn: 'Sportage',
+    make: 'كيا (Kia)',
+    model: 'سبورتاج',
+    vehicleType: 'suv',
+    vehicleBodyShape: 'جيب صالون مقفل (دفع رباعي)',
+    defaultTrim: 'LX أوتوماتيك',
+    category: 'private',
+    fuelType: 'petrol',
+    engineCapacity: '2000 cc',
+    cylindersCount: 4,
+    icon: '🚙',
+    description: 'كيا سبورتاج - جيب كروس أوفر دفع رباعي'
+  },
+  {
+    name: 'النترا',
+    nameEn: 'Elantra',
+    make: 'هيونداي (Hyundai)',
+    model: 'النترا',
+    vehicleType: 'sedan',
+    vehicleBodyShape: 'صالون (سيدان 4 أبواب)',
+    defaultTrim: 'GLS أوتوماتيك',
+    category: 'private',
+    fuelType: 'petrol',
+    engineCapacity: '2000 cc',
+    cylindersCount: 4,
+    icon: '🚗',
+    description: 'هيونداي النترا - صالون سيدان 4 أبواب'
+  },
+  {
+    name: 'سوناتا',
+    nameEn: 'Sonata',
+    make: 'هيونداي (Hyundai)',
+    model: 'سوناتا',
+    vehicleType: 'sedan',
+    vehicleBodyShape: 'صالون (سيدان 4 أبواب)',
+    defaultTrim: 'SE أوتوماتيك',
+    category: 'private',
+    fuelType: 'petrol',
+    engineCapacity: '2400 cc',
+    cylindersCount: 4,
+    icon: '🚗',
+    description: 'هيونداي سوناتا - صالون سيدان متوسط'
+  },
+  {
+    name: 'اكسنت',
+    nameEn: 'Accent',
+    make: 'هيونداي (Hyundai)',
+    model: 'اكسنت',
+    vehicleType: 'sedan',
+    vehicleBodyShape: 'صالون (سيدان 4 أبواب)',
+    defaultTrim: 'GL أوتوماتيك',
+    category: 'private',
+    fuelType: 'petrol',
+    engineCapacity: '1600 cc',
+    cylindersCount: 4,
+    icon: '🚗',
+    description: 'هيونداي اكسنت - صالون سيدان اقتصادي'
+  },
+  {
+    name: 'يارس',
+    nameEn: 'Yaris',
+    make: 'تويوتا (Toyota)',
+    model: 'يارس',
+    vehicleType: 'sedan',
+    vehicleBodyShape: 'صالون (سيدان 4 أبواب)',
+    defaultTrim: 'Y أوتوماتيك',
+    category: 'private',
+    fuelType: 'petrol',
+    engineCapacity: '1500 cc',
+    cylindersCount: 4,
+    icon: '🚗',
+    description: 'تويوتا يارس - صالون سيدان / هاتشباك'
+  },
+  {
+    name: 'هايس',
+    nameEn: 'HiAce',
+    make: 'تويوتا (Toyota)',
+    model: 'هايس',
+    vehicleType: 'van',
+    vehicleBodyShape: 'باص صغير 12-14 راكب',
+    defaultTrim: 'سقف عالي',
+    category: 'commercial',
+    fuelType: 'diesel',
+    engineCapacity: '2800 cc',
+    cylindersCount: 4,
+    icon: '🚐',
+    description: 'تويوتا هايس - باص ركاب 12-14 راكب'
+  },
+  {
+    name: 'دينا',
+    nameEn: 'Dyna',
+    make: 'تويوتا (Toyota)',
+    model: 'دينا',
+    vehicleType: 'truck',
+    vehicleBodyShape: 'شاحنة نقل بضائع (صندوق مفتوح)',
+    defaultTrim: 'شاص طويل',
+    category: 'commercial',
+    fuelType: 'diesel',
+    engineCapacity: '4000 cc',
+    cylindersCount: 4,
+    icon: '🚚',
+    description: 'تويوتا دينا - شاحنة نقل خفيف/متوسط'
+  },
 ];
 
 // Helper to deduce vehicle name/model
@@ -205,5 +340,5 @@ export function resolveVehicleTypeName(model?: string, vehicleType?: string): st
     };
     return map[v] || v;
   }
-  return 'توسان';
+  return '---';
 }

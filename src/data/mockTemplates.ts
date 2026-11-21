@@ -596,4 +596,105 @@ export const sampleRegistrations: VehicleRegistration[] = [
   }
 ];
 
-export const defaultNewRegistration: VehicleRegistration = sampleRegistrations[0];
+export const createEmptyRegistration = (officerName: string = 'المقدم / صادق القاضي'): VehicleRegistration => {
+  const currentYear = new Date().getFullYear();
+  const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+  const randomPlate = Math.floor(10000 + Math.random() * 90000).toString();
+  const letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح', 'ط', 'ي', 'ك', 'ل', 'م', 'ن', 'س', 'ع', 'ف', 'ص', 'ق', 'ر', 'ش', 'ت'];
+  const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  const d = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${y}/${m}/${d}`;
+
+  return {
+    id: `reg-${Date.now()}`,
+    registrationNumber: `TRQ-${currentYear}-${randomSuffix}`,
+    serialNumber: `REG-${randomSuffix}`,
+    formNumber: '',
+    issueDate: todayStr,
+    expiryDate: '---',
+    trafficDepartment: 'الإدارة العامة للمرور - تعز (لجنة ترقيم الجمارك)',
+    governorate: 'تعز',
+
+    plateNumber: randomPlate,
+    platePrefix: '4',
+    plateLetter: randomLetter,
+    plateCategory: 'private',
+    plateCountry: 'الجمهورية اليمنية',
+
+    make: '',
+    model: '',
+    vehicleModelTrim: '',
+    vehicleBodyShape: '',
+    year: currentYear,
+    color: '',
+    secondaryColor: '',
+    vinNumber: '',
+    engineNumber: '',
+    vehicleType: 'suv',
+    fuelType: 'petrol',
+    engineCapacity: '',
+    cylindersCount: 4,
+    seatingCapacity: 5,
+    loadCapacityKg: 0,
+    originCountry: '',
+    customsDeclarationNumber: '',
+    customsDeclarationDate: '',
+    customsIssuingOffice: '',
+
+    ownerFullName: '',
+    ownerNationalId: '',
+    ownerPhone: '',
+    ownerAddress: '',
+    ownerBirthDate: '',
+    ownerBloodType: '',
+    ownerIdType: 'بطاقة شخصية',
+    ownerIdIssuePlace: '',
+    ownerType: 'individual',
+    ownerPhoto: undefined,
+    ownerIdCardPhoto: undefined,
+
+    vehicleCustomsPhoto: undefined,
+    vehiclePlatePhoto: undefined,
+    platePhotoRotation: 0,
+    platePhotoScale: 1,
+    platePhotoFit: 'cover',
+    platePhotoOffsetX: 0,
+    platePhotoOffsetY: 0,
+
+    guarantor1: {
+      fullName: '',
+      nationalId: '',
+      phone: '',
+      address: '',
+      relationship: 'معرف وضامن',
+      idCardPhoto: undefined,
+    },
+    guarantor2: {
+      fullName: '',
+      nationalId: '',
+      phone: '',
+      address: '',
+      relationship: 'معرف وشاهد',
+      idCardPhoto: undefined,
+    },
+
+    notes: '',
+    officerName: officerName,
+    technicalDeptHead: 'المهندس / وليد العبسي',
+    automatedIssuanceDirector: 'العقيد / عبد الرحمن المجيدي',
+    inspectionCenter: 'لجنة ترقيم الجمارك - تعز',
+    feeReceiptNumber: `REC-${currentYear}-${randomSuffix}`,
+    totalFeesPaid: 33000,
+    currency: 'ريال يمني',
+    inspectionStatus: 'passed',
+    inspectionDate: todayStr,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+export const defaultNewRegistration: VehicleRegistration = createEmptyRegistration();
+

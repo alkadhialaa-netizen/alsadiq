@@ -21,7 +21,20 @@ import {
   ArrowLeftRight
 } from 'lucide-react';
 import { rotateBase64Image } from './PlatePhotoEditor';
-import { detectAndCorrectCustomsSwap, swapEngineAndModelFields } from '../utils/customsNormalizer';
+import {
+  detectAndCorrectCustomsSwap,
+  swapEngineAndModelFields,
+  normalizeVehicleMake,
+  normalizeVehicleColor,
+  normalizeVinNumber,
+  normalizeOriginCountry,
+  normalizeEngineCapacity,
+  normalizeFuelType,
+  matchPopularYemenVehicleSafely,
+  toWesternDigits,
+  cleanEngineNumber,
+} from '../utils/customsNormalizer';
+import { deduceVehicleAndBodyShape } from '../data/vehicleBodyOptions';
 
 export type ScanType = 'owner-id' | 'customs' | 'guarantor-1' | 'guarantor-2' | 'owner-photo' | 'plate-photo';
 
@@ -44,6 +57,7 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'camera' | 'upload'>('camera');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [ocrImage, setOcrImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [processStatus, setProcessStatus] = useState<string>('');
   const [extractedPreview, setExtractedPreview] = useState<any | null>(null);
@@ -98,6 +112,7 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setSelectedImage(null);
+      setOcrImage(null);
       setExtractedPreview(null);
       setErrorMessage(null);
       setIsProcessing(false);
@@ -151,19 +166,22 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
     if (!videoRef.current) return;
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 1000;
-    canvas.height = video.videoHeight || 700;
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const rawDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const rawDataUrl = canvas.toDataURL('image/jpeg', 0.92);
     const compressed = await compressImage(rawDataUrl, 1000, 0.8);
+    const highResForOcr = isPurePhoto ? compressed : await compressImage(rawDataUrl, 1920, 0.92);
+
     setSelectedImage(compressed);
+    setOcrImage(highResForOcr);
     stopCamera();
 
     if (!isPurePhoto) {
-      triggerAiExtraction(compressed);
+      triggerAiExtraction(highResForOcr);
     }
   };
 
@@ -176,10 +194,12 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
     reader.onload = async (event) => {
       const rawDataUrl = event.target?.result as string;
       const compressed = await compressImage(rawDataUrl, 1000, 0.8);
+      const highResForOcr = isPurePhoto ? compressed : await compressImage(rawDataUrl, 1920, 0.92);
       setSelectedImage(compressed);
+      setOcrImage(highResForOcr);
       setErrorMessage(null);
       if (!isPurePhoto) {
-        triggerAiExtraction(compressed);
+        triggerAiExtraction(highResForOcr);
       }
     };
     reader.readAsDataURL(file);
@@ -238,7 +258,42 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
         let finalData = result.data;
         if (scanType === 'customs') {
           const { data: corrected, wasSwapped, reason } = detectAndCorrectCustomsSwap(result.data);
-          finalData = corrected;
+          const matchedPopular = matchPopularYemenVehicleSafely(
+            corrected.model,
+            corrected.make,
+            corrected.vehicleModelTrim
+          );
+          const resolvedModel = matchedPopular
+            ? matchedPopular.name
+            : (corrected.model && String(corrected.model).trim() !== 'سيارة' ? String(corrected.model).trim() : '');
+          const resolvedMake = normalizeVehicleMake(corrected.make) || (matchedPopular ? matchedPopular.make : '');
+          const cleanVin = normalizeVinNumber(corrected.vinNumber);
+          const parsedSeats = parseInt(toWesternDigits(corrected.seatingCapacity), 10);
+          const deduced = deduceVehicleAndBodyShape(
+            `${resolvedMake} ${resolvedModel} ${corrected.vehicleBodyShape || ''} ${corrected.vehicleModelTrim || ''}`.replace(/الشاصي|شاصي/g, ' '),
+            corrected.vehicleType || (matchedPopular ? matchedPopular.vehicleType : undefined),
+            corrected.vehicleBodyShape || (matchedPopular ? matchedPopular.vehicleBodyShape : undefined),
+            !isNaN(parsedSeats) && parsedSeats > 0 ? parsedSeats : undefined
+          );
+          finalData = {
+            ...corrected,
+            customsDeclarationNumber: corrected.customsDeclarationNumber ? toWesternDigits(corrected.customsDeclarationNumber).trim() : '',
+            customsDeclarationDate: corrected.customsDeclarationDate ? toWesternDigits(corrected.customsDeclarationDate).trim() : '',
+            vinNumber: cleanVin || corrected.vinNumber,
+            engineNumber: cleanEngineNumber(corrected.engineNumber) || corrected.engineNumber,
+            make: resolvedMake || corrected.make,
+            model: resolvedModel || corrected.model,
+            vehicleModelTrim: corrected.vehicleModelTrim ? toWesternDigits(corrected.vehicleModelTrim).trim() : (matchedPopular?.defaultTrim || ''),
+            year: corrected.year ? toWesternDigits(corrected.year).trim() : corrected.year,
+            vehicleType: deduced.vehicleType,
+            vehicleBodyShape: deduced.bodyShape,
+            color: normalizeVehicleColor(corrected.color) || corrected.color,
+            secondaryColor: normalizeVehicleColor(corrected.secondaryColor) || corrected.secondaryColor,
+            fuelType: normalizeFuelType(corrected.fuelType) || (matchedPopular?.fuelType || corrected.fuelType),
+            engineCapacity: normalizeEngineCapacity(corrected.engineCapacity) || (matchedPopular?.engineCapacity || corrected.engineCapacity),
+            cylindersCount: corrected.cylindersCount ? toWesternDigits(corrected.cylindersCount).trim() : (matchedPopular?.cylindersCount ?? corrected.cylindersCount),
+            originCountry: normalizeOriginCountry(corrected.originCountry, cleanVin) || corrected.originCountry,
+          };
           if (wasSwapped) {
             setSwapNotice(reason || 'تم تصحيح التبديل بين رقم المحرك والطراز تلقائياً');
           } else {
@@ -283,6 +338,7 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
   // Reset and retake photo
   const handleRetake = () => {
     setSelectedImage(null);
+    setOcrImage(null);
     setExtractedPreview(null);
     setErrorMessage(null);
     setSwapNotice(null);
@@ -487,6 +543,10 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
                     onClick={async () => {
                       const rotated = await rotateBase64Image(selectedImage, -90);
                       setSelectedImage(rotated);
+                      if (ocrImage) {
+                        const rotatedOcr = await rotateBase64Image(ocrImage, -90);
+                        setOcrImage(rotatedOcr);
+                      }
                     }}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-blue-50 text-slate-800 border border-slate-300 font-bold cursor-pointer transition"
                   >
@@ -498,6 +558,10 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
                     onClick={async () => {
                       const rotated = await rotateBase64Image(selectedImage, 90);
                       setSelectedImage(rotated);
+                      if (ocrImage) {
+                        const rotatedOcr = await rotateBase64Image(ocrImage, 90);
+                        setOcrImage(rotatedOcr);
+                      }
                     }}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-blue-50 text-slate-800 border border-slate-300 font-bold cursor-pointer transition"
                   >
@@ -533,7 +597,7 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
                   {selectedImage && !isProcessing && (
                     <button
                       type="button"
-                      onClick={() => triggerAiExtraction(selectedImage)}
+                      onClick={() => triggerAiExtraction(ocrImage || selectedImage)}
                       className="self-end sm:self-auto bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1 rounded-lg text-[11px] flex items-center gap-1 cursor-pointer transition"
                     >
                       <RefreshCw className="w-3 h-3" />
@@ -578,8 +642,8 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
                   )}
 
                   {/* Highlighted Key Customs Fields if scanned customs */}
-                  {scanType === 'customs' && (extractedPreview.customsDeclarationNumber || extractedPreview.customsDeclarationDate || extractedPreview.model || extractedPreview.engineNumber || extractedPreview.customsIssuingOffice) && (
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-emerald-100/70 p-2.5 rounded-xl border border-emerald-200">
+                  {scanType === 'customs' && (extractedPreview.customsDeclarationNumber || extractedPreview.customsDeclarationDate || extractedPreview.model || extractedPreview.vehicleModelTrim || extractedPreview.vehicleBodyShape || extractedPreview.engineNumber || extractedPreview.customsIssuingOffice) && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-emerald-100/70 p-2.5 rounded-xl border border-emerald-200">
                       {extractedPreview.customsDeclarationNumber && (
                         <div>
                           <span className="text-[10px] text-emerald-800 font-bold block">رقم البيان الجمركي</span>
@@ -599,9 +663,27 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-emerald-800 font-bold block">نوع المركبة / الموديل</span>
+                        <span className="text-[10px] text-emerald-800 font-bold block">الماركة / نوع المركبة</span>
                         <span className="font-black text-blue-900 text-xs sm:text-sm">
-                          {String(extractedPreview.model || 'غير محدد')} {extractedPreview.vehicleModelTrim ? `(${extractedPreview.vehicleModelTrim})` : ''}
+                          {[extractedPreview.make, extractedPreview.model].filter(Boolean).join(' ') || 'غير محدد'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-emerald-800 font-bold block">شكل الهيكل المعتمد</span>
+                        <span className="font-black text-emerald-950 text-xs sm:text-sm bg-white/80 px-1.5 py-0.5 rounded inline-block">
+                          {String(extractedPreview.vehicleBodyShape || 'غير محدد')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-emerald-800 font-bold block">الطراز (المسجل بالبيان)</span>
+                        <span className="font-mono font-black text-indigo-950 text-xs sm:text-sm bg-white/70 px-1 rounded">
+                          {String(extractedPreview.vehicleModelTrim || '---')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-emerald-800 font-bold block">سنة الصنع / اللون</span>
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                          {[extractedPreview.year, extractedPreview.color].filter(Boolean).join(' • ') || '---'}
                         </span>
                       </div>
                       <div>
@@ -622,7 +704,7 @@ export const AiCaptureModal: React.FC<AiCaptureModalProps> = ({
                         customsIssuingOffice: 'جهة إصدار البيان',
                         make: 'الشركة الصانعة / الماركة',
                         model: 'نوع المركبة / الموديل',
-                        vehicleModelTrim: 'فئة الطراز الفرعي',
+                        vehicleModelTrim: 'الطراز (الرقم أو الرمز المسجل بالبيان)',
                         vehicleType: 'صنف المركبة',
                         vehicleBodyShape: 'شكل الهيكل التفصيلي',
                         year: 'سنة الصنع',

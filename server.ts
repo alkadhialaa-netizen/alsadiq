@@ -44,8 +44,8 @@ function parseBase64Image(dataUriOrBase64: string): { mimeType: string; base64Da
  * to handle temporary 503 (high demand) or service spikes seamlessly.
  */
 async function generateContentWithFallback(ai: GoogleGenAI, requestConfig: any): Promise<any> {
-  // Try ultra-fast gemini-3.1-flash-lite, gemini-3.7-flash, and gemini-flash-latest
-  const candidateModels = ["gemini-3.1-flash-lite", "gemini-3.7-flash", "gemini-flash-latest"];
+  // Prefer gemini-4-hydrogen for accurate Arabic/English customs OCR & structured reasoning, with gemini-3.1-flash-lite fallback
+  const candidateModels = ["gemini-4-hydrogen", "gemini-3.1-flash-lite"];
   let lastError: any = null;
 
   for (const model of candidateModels) {
@@ -211,29 +211,48 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
    - سبورتاج (Sportage)
    - راف فور (RAV4)
    إذا كان المذكور في البيان أو وصف البضاعة يشير إلى أي من هذه الموديلات أو أسماءها بالإنجليزية، اكتب الاسم بالعربي في حقل model (مثلاً: "توسان" أو "برادو" أو "تريوس" أو "شاص" أو "هيلوكس"). لا تتركه عاماً كـ "سيارة" أو فارغاً.
-6. فئة الطراز / المواصفة الفرعية (vehicleModelTrim): مثل GLX, TXL, Limited, Standard, GLS, V6, غمارتين, غمّارة, دبل 4x4, ونش...
+6. رقم أو كود أو اسم الطراز المسجل على البيان (vehicleModelTrim):
+   ⚠️⚠️ تنبيه فائق الأهمية والصرامة بخصوص (الطراز):
+   في وثيقة البيان الجمركي اليمني يوجد عمود أو خانة صريحة ومخصصة مطبوع عليها عنوان (الطراز) أو (طراز المركبة).
+   في معظم البيانات الجمركية يُسجل في هذه الخانة رقم أو كود (مثل: رقم سنة الموديل 2018 أو 2020 أو 2016، أو كود الموديل التجاري مثل 150 أو 200 أو 2.7 أو 4.0 أو H1 أو H-1 أو TQ أو KND أو GRN285 أو FZJ79 أو TXL أو GLX أو رقم الطراز المدون في الخانة).
+   اقرأ بدقة متناهية ما هو مكتوب ومسجل داخل خانة (الطراز) في البيان وضعه في حقل vehicleModelTrim تماماً كما هو، سواء كان رقماً أو رمزاً، ولا تتركه فارغاً أبداً إذا كان مسجلاً بالبيان.
 7. سنة الصنع / الموديل (year): كرقم (مثلاً 2015 أو 2020 أو 2023)
 8. رقم الهيكل / الشاصي / القاعدة (vinNumber): 17 حرفاً ورقم (أو كما هو مكتوب بدقة في الوثيقة)
 9. رقم المحرك (engineNumber): رقم محرك المركبة (Engine No / رقم المكينة).
 
 ⚠️⚠️ تنبيه حاسم وصارم لمنع التبديل والخلط الشائع بين رقم المحرك والطراز:
 - رقم المحرك (engineNumber) هو كود ورقم المكينة الميكانيكي المكون من أرقام أو حروف إنجليزية مع أرقام (مثل: G4NA123456 أو 2TR-5489211 أو 1GR948210 أو 641664). لا تضع فيه أبداً اسم السيارة أو الطراز (توسان، برادو، GLS، TXL...)!
-- نوع وطراز المركبة (model / vehicleModelTrim) هو الاسم التجاري وفئة التجهيز للسيارة (مثل: توسان، برادو، تريوس، شاص، هيلوكس، سنتافي، باص H1، GLS، TXL، GLX). لا تضع فيه أبداً رقم المحرك أو كود المكينة!
-- في جداول البيانات الجمركية اليمنية: خانة "الطراز" تخص فئة ونوع السيارة، وخانة "رقم المحرك" تخص أرقام المكينة؛ احرص بشدة على عدم عكسهما أو تبديلهما.
+- نوع وطراز المركبة (model / vehicleModelTrim) هو الاسم التجاري وفئة التجهيز والرقم المسجل في خانة الطراز بالبيان (مثل: توسان، برادو، تريوس، شاص، هيلوكس، سنتافي، باص H1، 2018، 150، 200، GLS، TXL، GLX).
+- في جداول البيانات الجمركية اليمنية: خانة "الطراز" تخص رقم وفئة طراز السيارة، وخانة "رقم المحرك" تخص أرقام المكينة؛ احرص بشدة على استخراج كل حقل في موضعه الصحيح.
 
-10. لون المركبة الأساسي (color) والثانوي إن وجد (secondaryColor)
-11. نوع المركبة (vehicleType): أحد القيم: 'sedan', 'suv', 'pickup', 'van', 'bus', 'truck', 'motorcycle', 'trailer'
-12. شكل الهيكل التفصيلي (vehicleBodyShape): مثل: جيب صالون مقفل، شاص غمارتين حوض، باص مقفل (ركاب / فان)، صالون 4 أبواب، بيك أب غمّارة، حافلة ركاب، شاحنة نقل...
-13. نوع الوقود (fuelType): أحد القيم: 'petrol', 'diesel', 'hybrid', 'electric', 'gas'
-14. سعة المحرك (engineCapacity): مثل 2000 cc أو 2.7L أو 4.0L
-15. عدد الأسطوانات (cylindersCount): كرقم (مثلاً 4 أو 6 أو 8)
-16. عدد الركاب / المقاعد (seatingCapacity): كرقم
-17. الحمولة المصرح بها بالكيلوغرام (loadCapacityKg): كرقم
-18. بلد المنشأ والتصنيع (originCountry): مثل اليابان، كوريا الجنوبية، تايلاند، ألمانيا، أمريكا، الصين...
+10. لون المركبة الأساسي (color) والثانوي إن وجد (secondaryColor) - ترجم أي لون إنجليزي للعربية بدقة (مثلاً White -> أبيض، Pearl White -> أبيض لؤلؤي، Silver -> فضي، Black -> أسود، Gray -> رمادي، Blue -> أزرق، Navy -> كحلي، Red -> أحمر).
+11. نوع المركبة / صنف الهيكل الأساسي (vehicleType): اختر بدقة القيمة المطابقة لنوع السيارة الحقيقي:
+   - 'suv': لجميع سيارات الجيب والدفع الرباعي والكروس أوفر (برادو، لاند كروزر، توسان، سنتافي، تريوس، فورتشنر، راف فور، سبورتاج، باجيرو، باترول) — حتى لو كُتب في خانة الشكل بالبيان كلمة "صالون" أو "بوكس"!
+   - 'pickup': لسيارات النقل الخفيف والحوض (هيلوكس، شاص، ونيت، ديماكس، تاكوما، تندرا، نافارا، بيك أب غمارة أو غمارتين).
+   - 'sedan': لسيارات الصالون السيدان والهاتشباك (كامري، كورولا، النترا، سوناتا، اكسنت، يارس، أفالون، صني، أوبتيما، سيفيك، أكورد).
+   - 'van': للباصات الصغيرة والفانات والدباب (باص H1، هايس، ستاركس، فان بضائع، دباب هايجت/سوزوكي).
+   - 'bus': للحافلات الكبيرة والمتوسطة (كوستر، حافلة ركاب، بولمان).
+   - 'truck': للشاحنات والقلابات والصهاريج ورؤوس القاطرات والدينا.
+   - 'motorcycle': للدراجات النارية والتوك توك.
+   - 'trailer': للمقطورات والكرفانات.
+12. شكل الهيكل التفصيلي (vehicleBodyShape):
+   ⚠️⚠️ تنبيه حاسم بخصوص خانة (الشكل):
+   اقرأ ما هو مكتوب في خانة (الشكل / نوع الهيكل / Body) في جدول البيان الجمركي وطابقه مع المواصفة الحقيقية للمركبة بدقة تامة:
+   - لسيارات البيك أب/الشاص: تحقق بدقة هل هي **غمارة واحدة** (بابين / 2-3 مقاعد / Single Cab) فتكتب: "بيك أب غمارة واحدة (حوض مفرد)" أو "شاص غمارة واحدة (حوض مفرد)"، أم **غمارتين** (4 أبواب / 5-6 مقاعد / Double Cab) فتكتب: "بيك أب غمارتين (حوض مزدوج)" أو "شاص غمارتين (حوض مزدوج)". لا تفترض غمارتين إذا كانت غمارة!
+   - لسيارات الجيب والدفع الرباعي: اكتب "جيب صالون مقفل (دفع رباعي)" أو "جيب مدمج دفع رباعي" (لتريوس) أو "كروس أوفر مدمج (Crossover)".
+   - لسيارات الصالون: اكتب "صالون (سيدان 4 أبواب)"، أو "صالون هاتشباك (5 أبواب)" إذا كانت هاتشباك/بوكس، أو "صالون عائلي ستيشن" إذا كانت ستيشن.
+   - للفانات والباصات الصغيرة: فرّق بين "باص مقفل (ركاب / فان)" و"باص صغير 12-14 راكب" و"باص صغير 7 ركاب (دباب)" و"فان نقل بضائع مقفل (صندوق مقفل)".
+   - للشاحنات: حدد بدقة "شاحنة نقل بضائع (صندوق مفتوح)" أو "شاحنة قلاب (مخلفات ومواد بناء)" أو "شاحنة صهريج ماء / محروقات" أو "رأس قاطرة وتريلا (شاحنة تريلا)".
+13. نوع الوقود (fuelType): اقرأ خانة الوقود في البيان بدقة ولا تخمّن ('petrol' للبترول/البنزين، 'diesel' للديزل/السولار، 'hybrid' للهجين، 'electric' للكهربائي، 'gas' للغاز).
+14. سعة المحرك (engineCapacity): اقرأ القوة/السعة المسجلة بالبيان (مثل 2000 cc أو 2700 cc أو 4000 cc أو 2.7L).
+15. عدد الأسطوانات (cylindersCount): عدد السلندرات الفعلي المسجل بالوثيقة كرقم (مثلاً 4 أو 6 أو 8).
+16. عدد الركاب / المقاعد (seatingCapacity): كرقم من البيان.
+17. الحمولة المصرح بها بالكيلوغرام (loadCapacityKg): كرقم إن وجدت.
+18. بلد المنشأ والتصنيع (originCountry): بالعربية (مثل اليابان، كوريا الجنوبية، تايلاند، ألمانيا، الولايات المتحدة الأمريكية، الصين، إندونيسيا).
 19. اسم المالك المذكور بالبيان إن وجد (ownerFullName)
 20. الرقم الوطني أو رقم هوية المالك إن وجد (ownerNationalId)
 
-إذا لم يتوفر حقل معين بالوثيقة، ضعه فارغاً "" أو رقماً افتراضياً معقولاً.`;
+⚠️ قاعدة صارمة للدقة: انقل الأرقام والبيانات من خلايا الجدول بالبيان الجمركي حرفياً بأرقام إنجليزية (0-9) ولا تخمّن بيانات غير موجودة. إذا لم يتوفر حقل نصي ضعه "" أو 0 للحقول الرقمية غير الموجودة.`;
 
     const response = await generateContentWithFallback(ai, {
       contents: {
@@ -256,39 +275,39 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
             customsDeclarationDate: { type: Type.STRING, description: "تاريخ البيان الجمركي (YYYY/MM/DD)" },
             customsIssuingOffice: { type: Type.STRING, description: "جهة أو منفذ إصدار البيان الجمركي بدقة (مثال: جمرك منفذ الوديعة، جمرك ميناء عدن، جمرك شحن)" },
             make: { type: Type.STRING, description: "الشركة الصانعة / الماركة" },
-            model: { type: Type.STRING, description: "نوع المركبة / الموديل التجاري (مثل: توسان، برادو، تريوس، شاص، هيلوكس، سنتافي)" },
-            vehicleModelTrim: { type: Type.STRING, description: "فئة الطراز الفرعي (مثل: GLX, TXL, Limited, غمارتين)" },
+            model: { type: Type.STRING, description: "نوع المركبة / الموديل التجاري (مثل: توسان، برادو، تريوس، شاص، هيلوكس، سنتافي، كورولا، كامري)" },
+            vehicleModelTrim: { type: Type.STRING, description: "رقم أو كود أو اسم الطراز المسجل تماماً في خانة (الطراز) بالبيان الجمركي (سواء كان رقماً مثل 2018 أو 150 أو كوداً مثل H1 أو TXL)" },
             year: { type: Type.INTEGER, description: "سنة الصنع (الموديل)" },
-            vinNumber: { type: Type.STRING, description: "رقم الهيكل أو الشاصي VIN" },
-            engineNumber: { type: Type.STRING, description: "رقم المحرك أو رقم المكينة بدقة بدون فراغات أو رموز" },
-            color: { type: Type.STRING, description: "اللون الأساسي" },
-            secondaryColor: { type: Type.STRING, description: "اللون الثانوي" },
+            vinNumber: { type: Type.STRING, description: "رقم الهيكل أو الشاصي VIN (17 خانة)" },
+            engineNumber: { type: Type.STRING, description: "رقم المحرك أو رقم المكينة بدقة" },
+            color: { type: Type.STRING, description: "اللون الأساسي بالعربية" },
+            secondaryColor: { type: Type.STRING, description: "اللون الثانوي بالعربية إن وجد" },
             vehicleType: {
               type: Type.STRING,
               enum: ["sedan", "suv", "pickup", "van", "bus", "truck", "motorcycle", "trailer"],
-              description: "نوع المركبة الأساسي",
+              description: "صنف المركبة الأساسي المطابق لنوع السيارة",
             },
             vehicleBodyShape: {
               type: Type.STRING,
-              description: "شكل الهيكل التفصيلي بالعربية",
+              description: "شكل الهيكل التفصيلي الدقيق بالعربية (مثل: جيب صالون مقفل (دفع رباعي)، بيك أب غمارتين (حوض مزدوج)، بيك أب غمارة واحدة (حوض مفرد)، صالون (سيدان 4 أبواب)، باص مقفل (ركاب / فان))",
             },
             fuelType: {
               type: Type.STRING,
               enum: ["petrol", "diesel", "hybrid", "electric", "gas"],
               description: "نوع الوقود",
             },
-            engineCapacity: { type: Type.STRING, description: "سعة المحرك" },
+            engineCapacity: { type: Type.STRING, description: "سعة المحرك (مثال: 2700 cc)" },
             cylindersCount: { type: Type.INTEGER, description: "عدد السلندرات" },
             seatingCapacity: { type: Type.INTEGER, description: "عدد المقاعد" },
             loadCapacityKg: { type: Type.NUMBER, description: "الحمولة بالكيلوغرام" },
-            originCountry: { type: Type.STRING, description: "بلد الصنع والمنشأ" },
+            originCountry: { type: Type.STRING, description: "بلد الصنع والمنشأ بالعربية" },
             plateNumber: { type: Type.STRING, description: "رقم اللوحة إن وجد" },
             plateLetter: { type: Type.STRING, description: "حرف اللوحة إن وجد" },
             ownerFullName: { type: Type.STRING, description: "اسم المالك إن وجد في البيان" },
             ownerNationalId: { type: Type.STRING, description: "الرقم الوطني للمالك إن وجد" },
             notes: { type: Type.STRING, description: "ملاحظات جمركية أو قيود أو بيانات إضافية مستخرجة" },
           },
-          required: ["make", "model", "year", "vinNumber"],
+          required: ["make", "model", "year", "vinNumber", "vehicleType", "vehicleBodyShape", "color", "fuelType"],
         },
       },
     });
@@ -315,11 +334,15 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
     const looksLikeEngineNumber = (val: any): boolean => {
       if (!val) return false;
       const str = String(val).trim();
-      if (looksLikeCarModelOrTrim(str) && !/\d{3,}/.test(str)) {
+      // 1. If it's a 4-digit year (1990-2029), it's a model/trim number from the declaration, NOT an engine number
+      if (/^(?:19\d{2}|20[0-3]\d)$/.test(str)) return false;
+      // 2. If it's standard trim codes or numbers (150, 200, 2.7, 4.0, H1, etc.), it's TRIM, NOT engine number
+      if (/^(?:150|200|250|300|2\.7|4\.0|3\.5|V6|V8|4WD|4X4|H1|H-1|GLX|TXL|GLS|VX|GX|VXR|GXR|SR5|LIMITED|STANDARD)$/i.test(str)) return false;
+      if (looksLikeCarModelOrTrim(str) && !/\d{5,}/.test(str)) {
         return false;
       }
-      const hasEngineCode = /^(?:2TR|1GR|2AZ|1NZ|1HZ|3RZ|2AR|1VD|5L|3SZ|HC|K3|G4|D4|G6|QR|VQ|HR)[\-_]?[A-Z0-9]*/i.test(str);
-      const hasSerialDigits = /\d{3,}/.test(str);
+      const hasEngineCode = /^(?:2TR|1GR|2AZ|1NZ|1HZ|3RZ|2AR|1VD|5L|3SZ|HC|K3|G4|D4|G6|QR|VQ|HR|4G|4D)[\-_]?[A-Z0-9]*/i.test(str);
+      const hasSerialDigits = /\d{6,}/.test(str);
       return hasEngineCode || hasSerialDigits;
     };
 
@@ -328,7 +351,7 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
     let rawTrm = parsed.vehicleModelTrim ? String(parsed.vehicleModelTrim).trim() : '';
 
     // Check if engineNumber and model/trim were swapped
-    if (looksLikeCarModelOrTrim(rawEng) || (!/\d/.test(rawEng) && (looksLikeEngineNumber(rawTrm) || looksLikeEngineNumber(rawMdl)))) {
+    if (looksLikeCarModelOrTrim(rawEng) && (looksLikeEngineNumber(rawTrm) || looksLikeEngineNumber(rawMdl))) {
       if (looksLikeEngineNumber(rawTrm)) {
         // Swap engineNumber with vehicleModelTrim
         const temp = rawEng;
@@ -344,14 +367,6 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
         rawEng = rawMdl;
         rawMdl = temp;
       }
-    } else if (looksLikeEngineNumber(rawTrm) && !looksLikeEngineNumber(rawEng)) {
-      parsed.engineNumber = rawTrm;
-      parsed.vehicleModelTrim = looksLikeCarModelOrTrim(rawEng) ? rawEng : 'قياسي';
-      rawEng = rawTrm;
-    } else if (looksLikeEngineNumber(rawMdl) && !looksLikeEngineNumber(rawEng)) {
-      parsed.engineNumber = rawMdl;
-      parsed.model = looksLikeCarModelOrTrim(rawEng) ? rawEng : '';
-      rawEng = rawMdl;
     }
 
     // 1. Clean and normalize engine number
@@ -371,26 +386,46 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
       }
     }
 
-    // 2. Normalize Popular Yemen Models if model is missing or generic
+    // 2. Normalize Popular Yemen Models safely (never match 'شاص' inside 'الشاصي' or 'h1' inside random VINs)
     const popularNames = [
       { ar: 'توسان', en: 'tucson', make: 'هيونداي (Hyundai)' },
       { ar: 'برادو', en: 'prado', make: 'تويوتا (Toyota)' },
       { ar: 'تريوس', en: 'terios', make: 'دايهاتسو (Daihatsu)' },
-      { ar: 'شاص', en: 'shas', make: 'تويوتا (Toyota)' },
+      { ar: 'شاص', en: 'shas', make: 'تويوتا (Toyota)', exactBoundary: true },
       { ar: 'هيلوكس', en: 'hilux', make: 'تويوتا (Toyota)' },
       { ar: 'سنتافي', en: 'santa fe', make: 'هيونداي (Hyundai)' },
-      { ar: 'باص H1', en: 'h1', make: 'هيونداي (Hyundai)' },
+      { ar: 'باص H1', en: 'h1', make: 'هيونداي (Hyundai)', exactBoundary: true },
       { ar: 'لاند كروزر', en: 'land cruiser', make: 'تويوتا (Toyota)' },
       { ar: 'كورولا', en: 'corolla', make: 'تويوتا (Toyota)' },
       { ar: 'كامري', en: 'camry', make: 'تويوتا (Toyota)' },
       { ar: 'يارس', en: 'yaris', make: 'تويوتا (Toyota)' },
       { ar: 'سبورتاج', en: 'sportage', make: 'كيا (Kia)' },
       { ar: 'راف فور', en: 'rav4', make: 'تويوتا (Toyota)' },
+      { ar: 'فورتشنر', en: 'fortuner', make: 'تويوتا (Toyota)' },
+      { ar: 'النترا', en: 'elantra', make: 'هيونداي (Hyundai)' },
+      { ar: 'سوناتا', en: 'sonata', make: 'هيونداي (Hyundai)' },
+      { ar: 'اكسنت', en: 'accent', make: 'هيونداي (Hyundai)' },
+      { ar: 'هايس', en: 'hiace', make: 'تويوتا (Toyota)' },
+      { ar: 'دينا', en: 'dyna', make: 'تويوتا (Toyota)' },
+      { ar: 'دباب', en: 'hijet', make: 'دايهاتسو (Daihatsu)' },
     ];
 
-    const currentModelStr = `${parsed.model || ''} ${parsed.make || ''} ${parsed.vehicleModelTrim || ''} ${parsed.notes || ''}`.toLowerCase();
+    const safeModelText = `${parsed.model || ''} ${parsed.make || ''} ${parsed.vehicleModelTrim || ''}`
+      .replace(/الشاصي|شاصي/g, ' ')
+      .toLowerCase();
     for (const pop of popularNames) {
-      if (currentModelStr.includes(pop.ar) || currentModelStr.includes(pop.en)) {
+      let matched = false;
+      if (pop.exactBoundary) {
+        if (pop.ar === 'شاص') {
+          matched = /(?:^|[\s\-_/])شاص(?:$|[\s\-_/])/.test(safeModelText) || /\bshas\b/.test(safeModelText);
+        } else {
+          matched = safeModelText.includes('باص h1') || /\bh[\- ]?1\b/.test(safeModelText) || safeModelText.includes('starex');
+        }
+      } else {
+        matched = safeModelText.includes(pop.ar) || safeModelText.includes(pop.en);
+      }
+
+      if (matched) {
         if (!parsed.model || parsed.model === 'سيارة' || parsed.model === 'صالون' || parsed.model.toLowerCase() === pop.en) {
           parsed.model = pop.ar;
         }
@@ -401,9 +436,21 @@ app.post("/api/extract/customs-declaration", async (req: Request, res: Response)
       }
     }
 
-    // 3. Normalize digits in customs declaration number
+    // 3. Normalize digits in VIN, customs declaration number, and date
+    if (parsed.vinNumber) {
+      parsed.vinNumber = String(parsed.vinNumber)
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString())
+        .replace(/[\s\-_.*#]/g, '')
+        .toUpperCase()
+        .trim();
+    }
     if (parsed.customsDeclarationNumber) {
       parsed.customsDeclarationNumber = String(parsed.customsDeclarationNumber)
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString())
+        .trim();
+    }
+    if (parsed.customsDeclarationDate) {
+      parsed.customsDeclarationDate = String(parsed.customsDeclarationDate)
         .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString())
         .trim();
     }

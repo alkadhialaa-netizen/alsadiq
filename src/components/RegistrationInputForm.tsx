@@ -30,9 +30,14 @@ import { PlateVisualizer } from './PlateVisualizer';
 import { sampleRegistrations } from '../data/mockTemplates';
 import { AiCaptureModal, ScanType } from './AiCaptureModal';
 import { PlatePhotoEditor } from './PlatePhotoEditor';
-import { VEHICLE_BODY_OPTIONS, deduceVehicleAndBodyShape } from '../data/vehicleBodyOptions';
+import { VEHICLE_BODY_OPTIONS } from '../data/vehicleBodyOptions';
 import { POPULAR_YEMEN_VEHICLES, PopularVehicle } from '../data/popularYemenVehicles';
-import { detectAndCorrectCustomsSwap, cleanEngineNumber, getCurrentDeviceDate, YEMEN_CUSTOMS_OFFICES } from '../utils/customsNormalizer';
+import {
+  cleanEngineNumber,
+  getCurrentDeviceDate,
+  YEMEN_CUSTOMS_OFFICES,
+  resolveAccurateCustomsVehicleData,
+} from '../utils/customsNormalizer';
 
 interface RegistrationInputFormProps {
   currentData: VehicleRegistration;
@@ -165,60 +170,15 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
       });
       showToast('تم استخراج بيانات بطاقة المالك بنجاح وتعبئة الحقول تلقائياً!');
     } else if (currentScanType === 'customs') {
-      // 0. Auto-check and correct any inverted engine number and vehicle model/trim
-      const { data: normExtracted, wasSwapped } = detectAndCorrectCustomsSwap(extracted);
-
-      // 1. Clean and normalize engine number
-      const cleanEngine = cleanEngineNumber(normExtracted.engineNumber);
-
-      // 2. Comprehensive check for popular Yemen vehicle models
-      const textToSearch = `${normExtracted.model || ''} ${normExtracted.make || ''} ${normExtracted.vehicleModelTrim || ''} ${normExtracted.notes || ''}`.toLowerCase();
-      const matchedPopular = POPULAR_YEMEN_VEHICLES.find(
-        p => (
-          (normExtracted.model && (normExtracted.model.includes(p.name) || p.name.includes(normExtracted.model.trim()))) ||
-          (p.nameEn && textToSearch.includes(p.nameEn.toLowerCase())) ||
-          textToSearch.includes(p.name)
-        )
-      );
-
-      const resolvedModel = matchedPopular ? matchedPopular.name : (normExtracted.model?.trim() || currentData.model);
-      const resolvedTrim = normExtracted.vehicleModelTrim?.trim() || (matchedPopular ? matchedPopular.defaultTrim : currentData.vehicleModelTrim);
-
-      const deduced = deduceVehicleAndBodyShape(
-        `${normExtracted.make || (matchedPopular ? matchedPopular.make : '')} ${resolvedModel}`,
-        normExtracted.vehicleType || (matchedPopular ? matchedPopular.vehicleType : undefined),
-        normExtracted.vehicleBodyShape || (matchedPopular ? matchedPopular.vehicleBodyShape : undefined)
-      );
-
+      const { updated, wasSwapped } = resolveAccurateCustomsVehicleData(extracted, currentData);
       onChange({
-        ...currentData,
-        customsDeclarationNumber: normExtracted.customsDeclarationNumber || currentData.customsDeclarationNumber,
-        customsDeclarationDate: normExtracted.customsDeclarationDate || currentData.customsDeclarationDate,
-        customsIssuingOffice: normExtracted.customsIssuingOffice || currentData.customsIssuingOffice,
-        make: normExtracted.make || (matchedPopular ? matchedPopular.make : currentData.make),
-        model: resolvedModel,
-        vehicleModelTrim: resolvedTrim,
-        year: normExtracted.year ? Number(normExtracted.year) : currentData.year,
-        vinNumber: normExtracted.vinNumber ? String(normExtracted.vinNumber).toUpperCase().trim() : currentData.vinNumber,
-        engineNumber: cleanEngine || currentData.engineNumber,
-        color: normExtracted.color || currentData.color,
-        secondaryColor: normExtracted.secondaryColor || currentData.secondaryColor,
-        vehicleType: (normExtracted.vehicleType as any) || (matchedPopular ? (matchedPopular.vehicleType as any) : (deduced.vehicleType as any)) || currentData.vehicleType,
-        vehicleBodyShape: normExtracted.vehicleBodyShape || (matchedPopular ? matchedPopular.vehicleBodyShape : deduced.bodyShape) || currentData.vehicleBodyShape,
-        fuelType: (normExtracted.fuelType as any) || (matchedPopular ? matchedPopular.fuelType : currentData.fuelType),
-        engineCapacity: normExtracted.engineCapacity || (matchedPopular?.engineCapacity) || currentData.engineCapacity,
-        cylindersCount: normExtracted.cylindersCount ? Number(normExtracted.cylindersCount) : (matchedPopular?.cylindersCount ?? currentData.cylindersCount),
-        seatingCapacity: normExtracted.seatingCapacity ? Number(normExtracted.seatingCapacity) : currentData.seatingCapacity,
-        loadCapacityKg: normExtracted.loadCapacityKg ? Number(normExtracted.loadCapacityKg) : currentData.loadCapacityKg,
-        originCountry: normExtracted.originCountry || currentData.originCountry,
-        plateNumber: normExtracted.plateNumber || currentData.plateNumber,
-        vehicleCustomsPhoto: imageBase64,
-        notes: normExtracted.notes ? `${currentData.notes ? currentData.notes + ' | ' : ''}${normExtracted.notes}` : currentData.notes,
+        ...updated,
+        vehicleCustomsPhoto: imageBase64 || currentData.vehicleCustomsPhoto,
         updatedAt: new Date().toISOString(),
       });
-      showToast(wasSwapped 
-        ? 'تم استخراج البيانات وتصحيح ترتيب رقم المحرك والطراز بنجاح!' 
-        : 'تم استخراج رقم وتاريخ البيان الجمركي، والموديل، والمحرك والمواصفات الفنية بنجاح!'
+      showToast(wasSwapped
+        ? 'تم استخراج البيانات بدقة وتصحيح ترتيب رقم المحرك والطراز بنجاح!'
+        : 'تم استخراج بيانات المركبة والشكل والمواصفات من البيان الجمركي بدقة بنجاح!'
       );
     } else if (currentScanType === 'guarantor-1') {
       const g1 = currentData.guarantor1 || { fullName: '', nationalId: '', phone: '', address: '', relationship: '' };
@@ -1087,11 +1047,17 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
               </label>
               <input
                 type="text"
+                list="yemen-body-shapes-list-input"
                 value={currentData.vehicleBodyShape || ''}
                 onChange={(e) => updateField('vehicleBodyShape', e.target.value)}
-                placeholder="مثال: باص مقفل (ركاب / فان)، صالون 4 أبواب، شاص غمارتين..."
+                placeholder="مثال: جيب صالون مقفل (دفع رباعي)، صالون (سيدان 4 أبواب)..."
                 className="w-full font-bold text-sm px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               />
+              <datalist id="yemen-body-shapes-list-input">
+                {VEHICLE_BODY_OPTIONS.flatMap((opt) => opt.shapes).map((shape) => (
+                  <option key={shape} value={shape} />
+                ))}
+              </datalist>
             </div>
 
             {/* Fuel Type */}
@@ -1148,8 +1114,9 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
                 type="number"
                 min="1"
                 max="16"
-                value={currentData.cylindersCount || 4}
-                onChange={(e) => updateField('cylindersCount', parseInt(e.target.value) || 4)}
+                value={currentData.cylindersCount ?? ''}
+                onChange={(e) => updateField('cylindersCount', parseInt(e.target.value) || 0)}
+                placeholder="4"
                 className="w-full font-mono text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1163,8 +1130,9 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
                 type="number"
                 min="1"
                 max="80"
-                value={currentData.seatingCapacity || 5}
-                onChange={(e) => updateField('seatingCapacity', parseInt(e.target.value) || 5)}
+                value={currentData.seatingCapacity ?? ''}
+                onChange={(e) => updateField('seatingCapacity', parseInt(e.target.value) || 0)}
+                placeholder="5"
                 className="w-full font-mono text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1175,8 +1143,9 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
               </label>
               <input
                 type="number"
-                value={currentData.loadCapacityKg || 500}
+                value={currentData.loadCapacityKg ?? ''}
                 onChange={(e) => updateField('loadCapacityKg', parseInt(e.target.value) || 0)}
+                placeholder="500"
                 className="w-full font-mono text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1201,23 +1170,29 @@ export const RegistrationInputForm: React.FC<RegistrationInputFormProps> = ({
               </label>
               <input
                 type="text"
+                list="yemen-body-shapes-list-input"
                 value={currentData.vehicleBodyShape || ''}
                 onChange={(e) => updateField('vehicleBodyShape', e.target.value)}
-                placeholder="سيدان / صالون / ستيشن..."
+                placeholder="جيب صالون مقفل / صالون / شاص..."
                 className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                فئة الطراز (Trim / Grade)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-black text-slate-800">
+                  الطراز (الرقم أو الرمز المسجل بالبيان)
+                </label>
+                <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded">
+                  من البيان الجمركي
+                </span>
+              </div>
               <input
                 type="text"
                 value={currentData.vehicleModelTrim || ''}
                 onChange={(e) => updateField('vehicleModelTrim', e.target.value)}
-                placeholder="LE / SE / XLE / GLI..."
-                className="w-full text-sm px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="مثال: 2018 / H1 / 150 / 2.7 / TXL..."
+                className="w-full text-sm font-bold px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 

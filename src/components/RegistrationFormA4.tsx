@@ -387,11 +387,11 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
     (data.plateCategory as string) === 'نقل';
 
   // Format VIN into exactly 17 character slots
-  const rawVin = (data.vinNumber || 'KMJWA37R8FU641664').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const rawVin = (data.vinNumber || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   const vinChars = Array.from({ length: 17 }, (_, i) => rawVin[i] || '-');
 
   // Format Plate Display Numbers (e.g. 68742 separated or reversed)
-  const plateDigits = data.plateNumber ? data.plateNumber.split('') : ['6', '8', '7', '4', '2'];
+  const plateDigits = data.plateNumber ? data.plateNumber.split('') : ['-', '-', '-', '-', '-'];
   const platePrefix = data.platePrefix || '4';
 
   // Category in Arabic: "خصوصي" if private, "نقل" if transport
@@ -401,7 +401,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
     : 'خصوصي';
 
   // Formatted Plate Number representation
-  const cleanPlateDigits = data.plateNumber || '68742';
+  const cleanPlateDigits = data.plateNumber || '---';
   const formattedPlateNumber = isTransport
     ? (platePrefix ? `نقل ${platePrefix}-${cleanPlateDigits}` : `نقل ${cleanPlateDigits}`)
     : (platePrefix ? `خصوصي ${platePrefix}-${cleanPlateDigits}` : `خصوصي ${cleanPlateDigits}`);
@@ -513,7 +513,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
     if (data.vehicleType && vehicleTypeMap[data.vehicleType]) {
       return vehicleTypeMap[data.vehicleType];
     }
-    return data.vehicleType || 'توسان';
+    return data.vehicleType || '---';
   })();
 
   // Safeguard against inadvertent swap in stored records
@@ -532,7 +532,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
     if (isLikelyCarModelOrTrim(rawEng) && isLikelyEngineNumber(rawTrim)) {
       return rawEng;
     }
-    return rawTrim && rawTrim.trim() !== '' ? rawTrim : (data.model || 'قياسي');
+    return rawTrim && rawTrim.trim() !== '' ? rawTrim : (data.model || '---');
   })();
 
   // Fuel in Arabic
@@ -816,12 +816,12 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                     className="font-mono font-black text-[13px] px-2 py-0.5 rounded shadow-2xs"
                     style={{ backgroundColor: themeColors.bgLight, color: themeColors.primaryDark }}
                   >
-                    {data.registrationSequenceNumber || data.serialNumber || '4-3580'}
+                    {data.registrationSequenceNumber || data.serialNumber || (data.registrationNumber ? data.registrationNumber.replace('TRQ-', '') : '---')}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 font-bold">
                   <span className="text-slate-600 whitespace-nowrap">رقم الاستمارة:</span>
-                  <span className="font-mono font-black text-slate-900 text-[12px]">{data.formNumber || data.customsDeclarationNumber || 'C2006'}</span>
+                  <span className="font-mono font-black text-slate-900 text-[12px]">{data.formNumber || data.customsDeclarationNumber || '---'}</span>
                 </div>
               </div>
 
@@ -1138,11 +1138,11 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                 <div className="grid grid-cols-12 gap-2">
                   <div className="col-span-7 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">الاسم الرباعي:</span>
-                    <span className="font-black text-slate-950 text-[12px] truncate">{data.ownerFullName || 'محمد صالح مثنى راجح'}</span>
+                    <span className="font-black text-slate-950 text-[12px] truncate">{data.ownerFullName || '---'}</span>
                   </div>
                   <div className="col-span-5 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">رقم الهاتف:</span>
-                    <span className="font-mono font-black text-slate-900 text-[11.5px]">{data.ownerPhone || '779797629'}</span>
+                    <span className="font-mono font-black text-slate-900 text-[11.5px]">{data.ownerPhone || '---'}</span>
                   </div>
                 </div>
 
@@ -1154,7 +1154,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                   </div>
                   <div className="col-span-5 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">فصيلة الدم:</span>
-                    <span className="font-mono font-black text-rose-800 text-[11.5px]">{data.ownerBloodType || 'A+'}</span>
+                    <span className="font-mono font-black text-rose-800 text-[11.5px]">{data.ownerBloodType || '---'}</span>
                   </div>
                 </div>
 
@@ -1166,7 +1166,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                   </div>
                   <div className="col-span-5 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">رقم الهوية:</span>
-                    <span className="font-mono font-black text-slate-950 text-[11.5px]">{data.ownerNationalId || '04310027725'}</span>
+                    <span className="font-mono font-black text-slate-950 text-[11.5px]">{data.ownerNationalId || '---'}</span>
                   </div>
                 </div>
 
@@ -1174,12 +1174,12 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                 <div className="grid grid-cols-12 gap-2">
                   <div className="col-span-4 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">مكان الإصدار:</span>
-                    <span className="font-bold text-slate-900 text-[10.5px] truncate">{data.ownerIdIssuePlace || `مركز سامع ${data.governorate || 'تعز'}`}</span>
+                    <span className="font-bold text-slate-900 text-[10.5px] truncate">{data.ownerIdIssuePlace || '---'}</span>
                   </div>
                   <div className="col-span-8 flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">العنوان الحالي:</span>
                     <span className="font-bold text-slate-950 text-[10.5px] leading-tight truncate">
-                      {data.ownerAddress || 'تعز_التعزية_الحوبان_قرية قرانة_جوار مدرسة الشهيد ابو شهاب'}
+                      {data.ownerAddress || '---'}
                     </span>
                   </div>
                 </div>
@@ -1297,7 +1297,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">الماركة:</span>
-                  <span className="font-black text-slate-950 text-[11.5px]">{data.make || 'هونداي'}</span>
+                  <span className="font-black text-slate-950 text-[11.5px]">{data.make || '---'}</span>
                 </div>
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">نوع المركبة:</span>
@@ -1318,7 +1318,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                 </div>
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">اللون:</span>
-                  <span className="font-black text-slate-950 text-[11px]">{data.color || 'ابيض'}</span>
+                  <span className="font-black text-slate-950 text-[11px]">{data.color || '---'}</span>
                 </div>
               </div>
 
@@ -1326,11 +1326,11 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
               <div className="grid grid-cols-12 gap-2">
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">سنة الصنع:</span>
-                  <span className="font-mono font-black text-slate-950 text-[11.5px]">{data.year || 2015}</span>
+                  <span className="font-mono font-black text-slate-950 text-[11.5px]">{data.year || '---'}</span>
                 </div>
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">الطراز:</span>
-                  <span className="font-bold text-slate-800 text-[10.5px]">
+                  <span className="font-black text-slate-950 text-[11px] font-mono">
                     {displayTrim}
                   </span>
                 </div>
@@ -1345,7 +1345,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                     style={{ color: themeColors.primaryDark }}
                     dir="ltr"
                   >
-                    {data.vinNumber || 'KMJWA37R8FU641664'}
+                    {data.vinNumber || '---'}
                   </span>
                 </div>
                 
@@ -1388,7 +1388,7 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                 </div>
                 <div className="col-span-6 flex items-baseline gap-1.5">
                   <span className="text-slate-600 font-bold whitespace-nowrap">رقم البيان الجمركي:</span>
-                  <span className="font-mono font-black text-slate-950 text-[11px]">{data.customsDeclarationNumber || data.formNumber || 'C2006'}</span>
+                  <span className="font-mono font-black text-slate-950 text-[11px]">{data.customsDeclarationNumber || data.formNumber || '---'}</span>
                 </div>
               </div>
 
@@ -1476,35 +1476,35 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">الاسم:</span>
                     <span className="font-black text-slate-950 truncate text-[11px]">
-                      {data.guarantor1?.fullName || 'محمد عبده علي علي قائد البركاني'}
+                      {data.guarantor1?.fullName || '---'}
                     </span>
                   </div>
 
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">الرقم الوطني:</span>
                     <span className="font-mono font-black text-slate-900 text-[11px]">
-                      {data.guarantor1?.nationalId || '04110042835'}
+                      {data.guarantor1?.nationalId || '---'}
                     </span>
                   </div>
 
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">نوع القرابة:</span>
                     <span className="font-bold text-slate-800 text-[10.5px]">
-                      {data.guarantor1?.relationship || 'معرف'}
+                      {data.guarantor1?.relationship || '---'}
                     </span>
                   </div>
 
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">رقم الهاتف:</span>
                     <span className="font-mono font-bold text-slate-900 text-[11px]">
-                      {data.guarantor1?.phone || '772112313'}
+                      {data.guarantor1?.phone || '---'}
                     </span>
                   </div>
 
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">العنوان:</span>
                     <span className="font-semibold text-slate-950 text-[10px] leading-tight truncate">
-                      {data.guarantor1?.address || 'تعز_التعزية_الحوبان_قرية قرانة_جوار مدرسة الشهيد ابو شهاب'}
+                      {data.guarantor1?.address || '---'}
                     </span>
                   </div>
                 </div>
@@ -1532,35 +1532,35 @@ export const RegistrationFormA4: React.FC<RegistrationFormA4Props> = ({
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">الاسم:</span>
                     <span className="font-black text-slate-950 truncate text-[11px]">
-                      {data.guarantor2?.fullName || 'عزالدين عبده علي علي قائد البركاني'}
+                      {data.guarantor2?.fullName || '---'}
                     </span>
                   </div>
 
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">الرقم الوطني:</span>
                     <span className="font-mono font-black text-slate-900 text-[11px]">
-                      {data.guarantor2?.nationalId || '04610011437'}
+                      {data.guarantor2?.nationalId || '---'}
                     </span>
                   </div>
 
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">نوع القرابة:</span>
                     <span className="font-bold text-slate-800 text-[10.5px]">
-                      {data.guarantor2?.relationship || 'معرف'}
+                      {data.guarantor2?.relationship || '---'}
                     </span>
                   </div>
 
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">رقم الهاتف:</span>
                     <span className="font-mono font-bold text-slate-900 text-[11px]">
-                      {data.guarantor2?.phone || '734402762'}
+                      {data.guarantor2?.phone || '---'}
                     </span>
                   </div>
 
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-slate-600 font-bold whitespace-nowrap">العنوان:</span>
                     <span className="font-semibold text-slate-950 text-[10px] leading-tight truncate">
-                      {data.guarantor2?.address || 'تعز_التعزية_الحوبان_قرية قرانة_جوار مدرسة الشهيد ابو شهاب'}
+                      {data.guarantor2?.address || '---'}
                     </span>
                   </div>
                 </div>

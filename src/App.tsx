@@ -20,7 +20,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { VehicleRegistration, UserAccount } from './types';
-import { sampleRegistrations, defaultNewRegistration } from './data/mockTemplates';
+import { sampleRegistrations, defaultNewRegistration, createEmptyRegistration } from './data/mockTemplates';
 import { RegistrationFormA4, FormTheme } from './components/RegistrationFormA4';
 import { RegistrationInputForm } from './components/RegistrationInputForm';
 import { NewRegistrationPage } from './components/NewRegistrationPage';
@@ -36,7 +36,7 @@ import { getCurrentDeviceDate } from './utils/customsNormalizer';
 
 const STORAGE_KEY = 'vehicle_registrations_db_v1';
 const LAST_ARCHIVE_CLEANUP_KEY = 'last_archive_cleanup_timestamp_v1';
-const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000; // 48 hours = 2 days
+const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000; // 7 days = 1 week
 
 // Helper to keep only the latest 2 registration forms
 export const pruneArchiveToLatestTwo = (recordsList: VehicleRegistration[]): VehicleRegistration[] => {
@@ -56,7 +56,10 @@ export default function App() {
   const [lastCleanupTimestamp, setLastCleanupTimestamp] = useState<number>(() => {
     try {
       const saved = localStorage.getItem(LAST_ARCHIVE_CLEANUP_KEY);
-      return saved ? Number(saved) : Date.now();
+      if (saved) return Number(saved);
+      const now = Date.now();
+      localStorage.setItem(LAST_ARCHIVE_CLEANUP_KEY, String(now));
+      return now;
     } catch {
       return Date.now();
     }
@@ -67,8 +70,11 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_KEY);
       const lastCleanupStr = localStorage.getItem(LAST_ARCHIVE_CLEANUP_KEY);
       const now = Date.now();
-      const lastCleanup = lastCleanupStr ? Number(lastCleanupStr) : 0;
-      const shouldPurge = !lastCleanupStr || (now - lastCleanup) >= TWO_DAYS_MS;
+      const lastCleanup = lastCleanupStr ? Number(lastCleanupStr) : now;
+      if (!lastCleanupStr) {
+        localStorage.setItem(LAST_ARCHIVE_CLEANUP_KEY, String(now));
+      }
+      const shouldPurge = Boolean(lastCleanupStr) && (now - lastCleanup) >= ONE_WEEK_MS;
 
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -123,22 +129,27 @@ export default function App() {
     }
   }, [records]);
 
-  // Automated 2-Day (48-hour) Archive Cleanup
+  // Automated Weekly (7-day) Archive Cleanup
   useEffect(() => {
     const runArchiveCleanupCheck = () => {
       try {
         const lastCleanupStr = localStorage.getItem(LAST_ARCHIVE_CLEANUP_KEY);
         const now = Date.now();
-        const lastCleanup = lastCleanupStr ? Number(lastCleanupStr) : 0;
+        if (!lastCleanupStr) {
+          localStorage.setItem(LAST_ARCHIVE_CLEANUP_KEY, String(now));
+          setLastCleanupTimestamp(now);
+          return;
+        }
+        const lastCleanup = Number(lastCleanupStr);
 
-        if (!lastCleanupStr || (now - lastCleanup) >= TWO_DAYS_MS) {
+        if ((now - lastCleanup) >= ONE_WEEK_MS) {
           setRecords(prev => {
             if (prev.length > 2) {
               const pruned = pruneArchiveToLatestTwo(prev);
               localStorage.setItem(STORAGE_KEY, JSON.stringify(pruned));
               localStorage.setItem(LAST_ARCHIVE_CLEANUP_KEY, String(now));
               setLastCleanupTimestamp(now);
-              showToast('نظام الأرشيف: تم تنفيذ التصفية الدورية (كل يومين) والإبقاء على آخر استمارتين فقط');
+              showToast('نظام الأرشيف: تم تنفيذ التصفية الأسبوعية (كل 7 أيام) والإبقاء على آخر استمارتين فقط');
               return pruned;
             }
             localStorage.setItem(LAST_ARCHIVE_CLEANUP_KEY, String(now));
@@ -164,7 +175,7 @@ export default function App() {
     }
 
     const confirmPurge = window.confirm(
-      `تأكيد تصفية الأرشيف:\n\nهل أنت متأكد من تصفية كامل الاستمارات من الأرشيف والإبقاء على آخر استمارتين فقط؟\n\n- عدد الاستمارات الحالي: ${records.length}\n- سيتم حذف: ${records.length - 2} استمارة قديمة\n- سيتم الإبقاء على: أحدث استمارتين فقط\n- التصفية التلقائية كل يومين مفعلة ومستمرة`
+      `تأكيد تصفية الأرشيف:\n\nهل أنت متأكد من تصفية كامل الاستمارات من الأرشيف والإبقاء على آخر استمارتين فقط؟\n\n- عدد الاستمارات الحالي: ${records.length}\n- سيتم حذف: ${records.length - 2} استمارة قديمة\n- سيتم الإبقاء على: أحدث استمارتين فقط\n- التصفية التلقائية كل أسبوع (7 أيام) مفعلة ومستمرة`
     );
 
     if (confirmPurge) {
@@ -178,7 +189,7 @@ export default function App() {
       if (!pruned.some(r => r.id === currentRecord.id)) {
         setCurrentRecord(pruned[0]);
       }
-      showToast('تمت تصفية الأرشيف بنجاح! تم الإبقاء على آخر استمارتين فقط، وسيتم التصفية تلقائياً كل يومين.');
+      showToast('تمت تصفية الأرشيف بنجاح! تم الإبقاء على آخر استمارتين فقط، وسيتم التصفية تلقائياً كل أسبوع.');
     }
   };
 
@@ -195,30 +206,20 @@ export default function App() {
     showToast('تم تسجيل الخروج بنجاح');
   };
 
-  // Handler for creating a new vehicle registration
+  // Handler for creating a new vehicle registration with all previous data wiped clean
   const handleNewRecord = () => {
-    const newRegNum = `TRQ-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
-    const randomPlate = Math.floor(10000 + Math.random() * 90000).toString();
-    const letters = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح', 'ط', 'ي', 'ك', 'ل', 'م', 'ن', 'س', 'ع', 'ف', 'ص', 'ق', 'ر', 'ش', 'ت'];
-    const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+    const officer = currentUser 
+      ? (currentUser.username === 'صادق' || currentUser.username === 'sadeq' 
+          ? 'المقدم / صادق القاضي' 
+          : `${currentUser.rank || 'الملازم'} / ${currentUser.fullName}`) 
+      : 'المقدم / صادق القاضي';
 
-    const fresh: VehicleRegistration = {
-      ...defaultNewRegistration,
-      id: `reg-${Date.now()}`,
-      registrationNumber: newRegNum,
-      issueDate: getCurrentDeviceDate(),
-      customsIssuingOffice: '',
-      plateNumber: randomPlate,
-      plateLetter: randomLetter,
-      officerName: currentUser ? (currentUser.username === 'صادق' || currentUser.username === 'sadeq' ? 'المقدم / صادق القاضي' : `${currentUser.rank || 'الملازم'} / ${currentUser.fullName}`) : 'المقدم / صادق القاضي',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const fresh: VehicleRegistration = createEmptyRegistration(officer);
 
     setCurrentRecord(fresh);
     setIsEditing(false);
     setActiveView('new');
-    showToast('تم فتح صفحة ترقيم جديد منظمة - جاهزة للمطابقة والإدخال');
+    showToast('تم فتح ترقيم جديد فارغ — تم مسح كافة البيانات السابقة وجاهز للإدخال الفوري');
   };
 
   // Save current record to state & database safely
